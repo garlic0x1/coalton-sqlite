@@ -170,10 +170,12 @@
     (LispCondition String)))
 
 (coalton-toplevel
+  (inline)
   (declare throw-sqlite (U8 -> Unit))
   (define (throw-sqlite x)
     (throw (SqliteCondition (the SqliteError (load x)))))
 
+  (inline)
   (declare maybe-throw-sqlite (U8 -> Unit))
   (define (maybe-throw-sqlite x)
     (unless (zero? x)
@@ -201,13 +203,9 @@
   (declare with-database (String -> (Database -> :t) -> :t))
   (define (with-database path func)
     (let db = (open-database path))
-    (catch (func db)
-      ((SqliteCondition err)
-       (ignore-errors (close-database db))
-       (throw (SqliteCondition err)))
-      (_
-       (close-database db)
-       (throw (LispCondition "Unknown lisp condition occured with database open.")))))
+    (lisp :t (func db)
+      (cl:unwind-protect (call-coalton-function func db)
+        (call-coalton-function close-database db))))
 
   (declare prepare-statement (Database -> String -> Statement))
   (define (prepare-statement db sql)
@@ -228,14 +226,11 @@
   (declare with-statement (Database -> String -> (Statement -> :t) -> :t))
   (define (with-statement db sql func)
     (let stmt = (prepare-statement db sql))
-    (catch (func stmt)
-      ((SqliteCondition err)
-       (finalize-statement stmt)
-       (throw (SqliteCondition err)))
-      (_
-       (finalize-statement stmt)
-       (throw (LispCondition  "Unknown lisp condition occured with statement allocated.")))))
+    (lisp :t (func stmt)
+      (cl:unwind-protect (call-coalton-function func stmt)
+        (call-coalton-function finalize-statement stmt))))
 
+  (inline)
   (declare step-statement (Statement -> Boolean))
   (define (step-statement stmt)
     (lisp Boolean (stmt)
@@ -243,34 +238,40 @@
         (cl:case error-code
           (100 True)
           (101 False)
-          (cl:otherwise (throw-sqlite error-code))))))
+          (cl:otherwise (throw-sqlite error-code) False)))))
 
+  (inline)
   (declare column-count (Statement -> UFix))
   (define (column-count stmt)
     (lisp UFix (stmt)
       (ffi:sqlite3-column-count stmt)))
 
+  (inline)
   (declare column-type (Statement -> UFix -> SqliteType))
   (define (column-type stmt index)
     (load
      (lisp U8 (stmt index)
        (ffi:sqlite3-column-type stmt index))))
 
+  (inline)
   (declare column-text (Statement -> UFix -> String))
   (define (column-text stmt index)
     (lisp String (stmt index)
       (ffi:sqlite3-column-text stmt index)))
 
+  (inline)
   (declare column-i64 (Statement -> UFix -> I64))
   (define (column-i64 stmt index)
     (lisp I64 (stmt index)
       (ffi:sqlite3-column-int64 stmt index)))
 
+  (inline)
   (declare column-f64 (Statement -> UFix -> F64))
   (define (column-f64 stmt index)
     (lisp F64 (stmt index)
       (ffi:sqlite3-column-double stmt index)))
 
+  (inline)
   (declare column-blob (Statement -> UFix -> (vec:Vector U8)))
   (define (column-blob stmt index)
     (lisp (vec:Vector U8) (stmt index)
@@ -279,6 +280,7 @@
        (cl:list :array :uint8 (ffi:sqlite3-column-bytes stmt index))
        :adjustable cl:t)))
 
+  (inline)
   (declare column-value (Statement -> UFix -> SqliteValue))
   (define (column-value stmt index)
     (match (lisp U8 (stmt index) (ffi:sqlite3-column-type stmt index))
@@ -289,41 +291,49 @@
       (5 Null)
       (_ (throw-sqlite 1) Null)))
 
+  (inline)
   (declare column-name (Statement -> UFix -> String))
   (define (column-name stmt index)
     (lisp String (stmt index)
       (ffi:sqlite3-column-name stmt index)))
 
+  (inline)
   (declare parameter-count (Statement -> UFix))
   (define (parameter-count stmt)
     (lisp UFix (stmt)
       (ffi:sqlite3-bind-parameter-count stmt)))
 
+  (inline)
   (declare parameter-index (Statement -> String -> UFix))
   (define (parameter-index stmt name)
     (lisp UFix (stmt name)
       (ffi:sqlite3-bind-parameter-index stmt name)))
 
+  (inline)
   (declare parameter-name (Statement -> UFix -> String))
   (define (parameter-name stmt index)
     (lisp String (stmt index)
       (ffi:sqlite3-bind-parameter-name stmt index)))
 
+  (inline)
   (declare bind-i64 (Statement -> UFix -> I64 -> Unit))
   (define (bind-i64 stmt index x)
     (lisp Unit (stmt index x)
       (maybe-throw-sqlite (ffi:sqlite3-bind-int64 stmt index x))))
 
+  (inline)
   (declare bind-f64 (Statement -> UFix -> F64 -> Unit))
   (define (bind-f64 stmt index x)
     (lisp Unit (stmt index x)
       (maybe-throw-sqlite (ffi:sqlite3-bind-double stmt index x))))
 
+  (inline)
   (declare bind-text (Statement -> UFix -> String -> Unit))
   (define (bind-text stmt index x)
     (lisp Unit (stmt index x)
       (maybe-throw-sqlite (ffi:sqlite3-bind-text stmt index x -1 (ffi:destructor-transient)))))
 
+  (inline)
   (declare bind-blob (Statement -> UFix -> (vec:Vector U8) -> Unit))
   (define (bind-blob stmt index x)
     (let len = (vec:length x))
@@ -337,11 +347,13 @@
         (maybe-throw-sqlite 
          (ffi:sqlite3-bind-blob stmt index ptr len (ffi:destructor-transient))))))
 
+  (inline)
   (declare bind-null (Statement -> UFix -> Unit))
   (define (bind-null stmt index)
     (lisp Unit (stmt index)
       (maybe-throw-sqlite (ffi:sqlite3-bind-null stmt index))))
 
+  (inline)
   (declare bind-value (Statement -> UFix -> SqliteValue -> Unit))
   (define (bind-value stmt index value)
     (match value

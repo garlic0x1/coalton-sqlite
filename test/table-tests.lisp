@@ -1,9 +1,10 @@
 (in-package #:coalton-sqlite/test)
 
-(coalton-toplevel
-  (define-table Point
-    (x I64)
-    (y SqliteValue)))
+(cl:eval-when (:compile-toplevel :load-toplevel :execute) 
+  (coalton-toplevel
+    (define-table Point
+      (x I64)
+      (y SqliteValue))))
 
 (define-test test-basic-table-insert ()
   (is (==

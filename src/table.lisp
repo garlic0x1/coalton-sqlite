@@ -85,7 +85,7 @@
     (define bind-column sqlite:bind-value)
     (define read-column sqlite:column-value)))
 
-(coalton-toplevel
+(coalton-toplevel 
   (declare insert (Table :t => sqlite:Database -> :t -> Unit))
   (define (insert db table)
     (let name = (table-name table))
