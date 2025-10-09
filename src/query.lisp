@@ -7,7 +7,9 @@
    (#:sqlite #:coalton-sqlite/sqlite))
   (:export
    #:execute
-   #:query))
+   #:query
+   #:query-one
+   #:do-rows))
 
 (in-package #:coalton-sqlite/query)
 
@@ -45,5 +47,24 @@
           (if (not continue?)
               acc
               (let ((row (column-values stmt)))
-                (f (sqlite:step-statement stmt) (Cons row acc)))))))))
+                (f (sqlite:step-statement stmt) (Cons row acc))))))))
+
+  (declare query-one (sqlite:Database -> String -> (List sqlite:SqliteValue) -> (Optional (List sqlite:SqliteValue))))
+  (define (query-one db sql params)
+    (sqlite:with-statement db sql
+      (fn (stmt)
+        (bind-values stmt params)
+        (if (not (sqlite:step-statement stmt))
+            None
+            (Some (column-values stmt))))))
+
+  (declare do-rows (sqlite:Database -> String -> (List sqlite:SqliteValue) -> ((List sqlite:SqliteValue) -> Unit) -> Unit))
+  (define (do-rows db sql params func)
+    (sqlite:with-statement db sql
+      (fn (stmt)
+        (bind-values stmt params)
+        (rec f ((continue? (sqlite:step-statement stmt)))
+          (func (column-values stmt))
+          (when continue?
+            (f (sqlite:step-statement stmt))))))))
 
