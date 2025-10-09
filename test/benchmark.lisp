@@ -3,7 +3,7 @@
 (coalton-toplevel  
 
   (define-table MyRecord
-    (x String)
+    (x (coalton-library/cell:Cell String))
     (y String)
     (z I64))
 
@@ -12,14 +12,14 @@
   (define (benchmark-table-insert n) 
     (with-database "/tmp/coalton-sqlite-benchmark.sqlite3"
       (fn (db)
-        (execute db "PRAGMA journal_mode = MEMORY;   " mempty)
-        (execute db "PRAGMA temp_store = MEMORY;     " mempty)
-        (execute db "PRAGMA synchronous = NORMAL;    " mempty)
+        (execute db "PRAGMA journal_mode = MEMORY;" mempty)
+        (execute db "PRAGMA temp_store = MEMORY;" mempty)
+        (execute db "PRAGMA synchronous = NORMAL;" mempty)
         (execute db "PRAGMA locking_mode = EXCLUSIVE;" mempty)
         (create-table db MyRecord)
         (execute db "BEGIN TRANSACTION" mempty)
         (coalton-library/experimental:dotimes (i n)
-          (insert db (MyRecord "hello world this is the X slot"
+          (insert db (MyRecord (coalton-library/cell:new "hello world this is the X slot")
                                "idk I just want these strings to have a realistic sizze and not be one byte or anything silly like that, we would never be storing single-byte strings IRL"
                                (into i))))
         (execute db "COMMIT TRANSACTION" mempty)

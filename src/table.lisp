@@ -7,9 +7,11 @@
   (:local-nicknames
    (#:vec #:coalton-library/vector)
    (#:sym #:coalton-library/symbol)
+   (#:cell #:coalton-library/cell)
    (#:types #:coalton-library/types)
    (#:sqlite #:coalton-sqlite/sqlite))
   (:export
+   #:Table
    #:define-table
    #:bind-table
    #:read-table
@@ -20,22 +22,11 @@
 
 (in-package #:coalton-sqlite/table)
 
-(coalton-toplevel
-  (define-class (Column :t)
-    (bind-column (sqlite:Statement -> UFix -> :t -> Unit))
-    (read-column (sqlite:Statement -> UFix -> :t)))
-
-  (define-class (Table :t)
-    (table-name (:t -> sym:Symbol))
-    (table-size (:t -> UFix))
-    (bind-table (sqlite:Statement -> UFix -> :t -> Unit))
-    (read-table (sqlite:Statement -> UFix -> :t))))
-
 (cl:eval-when (:compile-toplevel :load-toplevel :execute)
   (cl:defvar *table-registry* (cl:make-hash-table))
 
   (cl:defmacro define-column (type binder reader sqlite-type)
-    `(progn
+    `(coalton-toplevel
        (define-instance (Column ,type)
          (define bind-column ,binder)
          (define read-column ,reader))
@@ -52,38 +43,55 @@
 
   (cl:defmacro define-table (name cl:&body slots)
     (cl:let ((slot-names (cl:mapcar #'cl:first slots)))
-      (cl:setf (cl:gethash name *table-registry*) slot-names)
-      `(progn
-         (derive Eq)
-         (define-struct ,name ,@slots)
-         (define-instance (Table ,name)
-           (define (table-name _struct)
-             (lisp sym:Symbol () ',name))
-           (define (table-size _struct)
-             (lisp UFix () ,(cl:length slots)))
-           (define (bind-table stmt index struct)
-             (let (,name ,@slot-names) = struct)
-             ,@(cl:loop
-                  :for i :upfrom 0
-                  :for slot-name :in slot-names
-                  :collect `(bind-column stmt (+ index ,i) ,slot-name)))
-           (define (read-table stmt index)
-             (,name
-              ,@(cl:loop
-                   :for i :upfrom 0
-                   :for slot :in slots
-                   :collect `(read-column stmt (+ index ,i))))))))))
+      `(cl:progn
+         (cl:setf (cl:gethash ',name *table-registry*) ',slot-names)
+         (coalton-toplevel 
+           (derive Eq Default)
+           (define-struct ,name ,@slots)
+           (define-instance (Table ,name)
+             (define (table-name _struct)
+               (lisp sym:Symbol () ',name))
+             (define (table-size _struct)
+               (lisp UFix () ,(cl:length slots)))
+             (define (bind-table stmt index struct)
+               (let (,name ,@slot-names) = struct)
+               ,@(cl:loop
+                    :for i :upfrom 0
+                    :for slot-name :in slot-names
+                    :collect `(bind-column stmt (+ index ,i) ,slot-name)))
+             (define (read-table stmt index)
+               (,name
+                ,@(cl:loop
+                     :for i :upfrom 0
+                     :for slot :in slots
+                     :collect `(read-column stmt (+ index ,i)))))))))))
 
 (coalton-toplevel
-  (define-column I64 sqlite:bind-i64 sqlite:column-i64 sqlite:SqliteInt)
-  (define-column F64 sqlite:bind-f64 sqlite:column-f64 sqlite:SqliteFloat)
-  (define-column String sqlite:bind-text sqlite:column-text sqlite:SqliteText)
-  (define-column (vec:Vector U8) sqlite:bind-blob sqlite:column-blob sqlite:SqliteBlob))
+  (define-class (Column :t)
+    (bind-column (sqlite:Statement -> UFix -> :t -> Unit))
+    (read-column (sqlite:Statement -> UFix -> :t)))
+
+  (define-class (Table :t)
+    (table-name (:t -> sym:Symbol))
+    (table-size (:t -> UFix))
+    (bind-table (sqlite:Statement -> UFix -> :t -> Unit))
+    (read-table (sqlite:Statement -> UFix -> :t))))
+
+(define-column I64 sqlite:bind-i64 sqlite:column-i64 sqlite:SqliteInt)
+(define-column F64 sqlite:bind-f64 sqlite:column-f64 sqlite:SqliteFloat)
+(define-column String sqlite:bind-text sqlite:column-text sqlite:SqliteText)
+(define-column (vec:Vector U8) sqlite:bind-blob sqlite:column-blob sqlite:SqliteBlob)
 
 (coalton-toplevel
   (define-instance (Column sqlite:SqliteValue)
     (define bind-column sqlite:bind-value)
-    (define read-column sqlite:column-value)))
+    (define read-column sqlite:column-value))
+
+  (define-instance (Column :t => Column (cell:Cell :t))
+    (define (bind-column stmt index value)
+      (bind-column stmt index (cell:read value)))
+    (define (read-column stmt index)
+      (cell:new (read-column stmt index)))))
 
 (coalton-toplevel 
   (declare insert (Table :t => sqlite:Database -> :t -> Unit))
