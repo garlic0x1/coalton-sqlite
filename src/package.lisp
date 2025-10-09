@@ -4,4 +4,5 @@
    #:coalton-prelude)
   (:use-reexport
    #:coalton-sqlite/sqlite
-   #:coalton-sqlite/query))
+   #:coalton-sqlite/query
+   #:coalton-sqlite/table))

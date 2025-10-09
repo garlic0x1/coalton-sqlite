@@ -20,3 +20,25 @@ This is a WIP, suggestions and contributions are welcome.
 #+begin_src lisp
 : ((#.(TEXT "foo") #.(INT -2)) (#.(TEXT "garlic0x1") #.(INT 26)))
 #+end_src
+
+There is an API for Coalton-defined tables but I would not recommend using it
+unless you are very brave.
+
+#+begin_src lisp :package coalton-sqlite
+  (coalton-toplevel
+    (define-table Point
+      (x I64)
+      (y SqliteValue)))
+
+  (coalton 
+   (with-database ""
+     (fn (db)
+       (create-table db Point)
+       (insert db (Point 1 (Int 2)))
+       (insert db (Point 1 (Text "foo")))
+       (the (List Point) (select-all db)))))
+#+end_src
+
+#+begin_src
+: (#.(POINT 1 #.(TEXT "foo")) #.(POINT 1 #.(INT 2)))
+#+end_src
