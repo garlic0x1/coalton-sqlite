@@ -1,0 +1,22 @@
+#+title: README
+
+SQLite Bindings for Coalton
+
+This is a WIP, suggestions and contributions are welcome.
+
+#+begin_src lisp :package coalton-sqlite
+  (coalton
+   (with-database ""
+     (fn (db)
+       (execute db "create table person (name, age);"
+                mempty)
+       (execute db "insert into person values (?, ?)"
+                (make-list (Text "garlic0x1") (Int 26)))
+       (execute db "insert into person values (?, ?)"
+                (make-list (Text "foo") (Int -2)))
+       (query db "select * from person" mempty))))
+#+end_src
+
+#+begin_src lisp
+: ((#.(TEXT "foo") #.(INT -2)) (#.(TEXT "garlic0x1") #.(INT 26)))
+#+end_src
