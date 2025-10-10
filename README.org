@@ -4,6 +4,23 @@ SQLite Bindings for Coalton
 
 This is a WIP, suggestions and contributions are welcome.
 
+This system is arranged into 5 packages, increasing in abstraction:
+1. `coalton-sqlite/ffi`
+   CFFI calls, a slightly modified version of the package in [[https://github.com/TeMPOraL/cl-sqlite][cl-sqlite]]
+2. `coalton-sqlite/sqlite`
+   Simple Coalton wrapper around the above FFI
+3. `coalton-sqlite/value`
+   A DynamicValue type that covers any SQLite value, as well as a
+   SQLiteValue typeclass for binding/reading
+4. `coalton-sqlite/query`
+   A few high-level query functions, they deal with ~(List DynamicValue)~
+5. `coalton-sqlite/record`
+   A ~define-record~ macro along with functions for
+   inserting/selecting record types
+
+The query and record packages are probably going to change since I am
+not super happy with them right now.
+
 #+begin_src lisp :package coalton-sqlite
   (coalton
    (with-database ""

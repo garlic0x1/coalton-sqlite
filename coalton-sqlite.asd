@@ -5,8 +5,9 @@
   :components ((:module "src"
                 :components ((:file "ffi")
                              (:file "sqlite")
+                             (:file "value")
                              (:file "query")
-                             (:file "table")
+                             (:file "record")
                              (:file "package"))))
   :in-order-to ((test-op (test-op "coalton-sqlite/test"))))
 
@@ -15,8 +16,9 @@
   :components ((:module "test"
                 :components ((:file "package")
                              (:file "sqlite-tests")
+                             (:file "value-tests")
                              (:file "query-tests")
-                             (:file "table-tests"))))
+                             (:file "record-tests"))))
   :perform (asdf:test-op
             (o s)
             (uiop:symbol-call '#:coalton-sqlite/test '#:run-tests)))

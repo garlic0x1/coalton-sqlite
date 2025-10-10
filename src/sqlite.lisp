@@ -44,12 +44,9 @@
    #:SqliteNull
    #:Database
    #:Statement
-   #:SqliteValue
-   #:Null
-   #:Int
-   #:Float
-   #:Text
-   #:Blob
+   #:SqliteCondition
+   #:throw-sqlite
+   #:maybe-throw-sqlite
    #:open-database
    #:close-database
    #:with-database
@@ -63,7 +60,6 @@
    #:column-i64
    #:column-f64
    #:column-blob
-   #:column-value
    #:column-name
    #:parameter-count
    #:parameter-index
@@ -73,7 +69,6 @@
    #:bind-text
    #:bind-blob
    #:bind-null
-   #:bind-value
    ))
 
 (in-package #:coalton-sqlite/sqlite)
@@ -154,16 +149,6 @@
 
   (repr :native cffi:foreign-pointer)
   (define-type Statement)
-
-  ;; TODO: switch Blob to LispArray,
-  ;; requires (Eq LispArray) to be implemented.
-  (derive Eq Hash)
-  (define-type SqliteValue
-    Null
-    (Int   I64)
-    (Float F64)
-    (Text  String)
-    (Blob  (vec:Vector U8)))
 
   (define-exception SqliteCondition
     (SqliteCondition SqliteError)
@@ -281,17 +266,6 @@
        :adjustable cl:t)))
 
   (inline)
-  (declare column-value (Statement -> UFix -> SqliteValue))
-  (define (column-value stmt index)
-    (match (lisp U8 (stmt index) (ffi:sqlite3-column-type stmt index))
-      (1 (Int   (column-i64 stmt index)))
-      (2 (Float (column-f64 stmt index)))
-      (3 (Text  (column-text stmt index)))
-      (4 (Blob  (column-blob stmt index)))
-      (5 Null)
-      (_ (throw-sqlite 1) Null)))
-
-  (inline)
   (declare column-name (Statement -> UFix -> String))
   (define (column-name stmt index)
     (lisp String (stmt index)
@@ -327,10 +301,10 @@
     (lisp Unit (stmt index x)
       (maybe-throw-sqlite (ffi:sqlite3-bind-double stmt index x))))
 
-  (inline)
   (declare bind-text (Statement -> UFix -> String -> Unit))
   (define (bind-text stmt index x)
-    (lisp Unit (stmt index x)
+    (let size = (coalton-library/string:length x))
+    (lisp Unit (stmt index x size)
       (maybe-throw-sqlite (ffi:sqlite3-bind-text stmt index x -1 (ffi:destructor-transient)))))
 
   (inline)
@@ -351,14 +325,4 @@
   (declare bind-null (Statement -> UFix -> Unit))
   (define (bind-null stmt index)
     (lisp Unit (stmt index)
-      (maybe-throw-sqlite (ffi:sqlite3-bind-null stmt index))))
-
-  (inline)
-  (declare bind-value (Statement -> UFix -> SqliteValue -> Unit))
-  (define (bind-value stmt index value)
-    (match value
-      ((Int x)   (bind-i64 stmt index x))
-      ((Float x) (bind-f64 stmt index x))
-      ((Text x)  (bind-text stmt index x))
-      ((Blob x)  (bind-blob stmt index x))
-      ((Null)    (bind-null stmt index)))))
+      (maybe-throw-sqlite (ffi:sqlite3-bind-null stmt index)))))

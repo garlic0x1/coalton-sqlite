@@ -1,10 +1,10 @@
 (in-package #:coalton-sqlite/test)
 
-(define-table Point
+(define-record Point
   (x I64)
-  (y SqliteValue))
+  (y DynamicValue))
 
-(define-test test-basic-table-insert ()
+(define-test test-basic-record-insert ()
   (is (==
        (make-list
         (Point 1 (Text "foo"))
