@@ -2,6 +2,8 @@
 
 SQLite Bindings for Coalton
 
+* Overview
+
 This is a WIP, suggestions and contributions are welcome.
 
 This system is arranged into 5 packages, increasing in abstraction:
@@ -16,8 +18,8 @@ This system is arranged into 5 packages, increasing in abstraction:
 
 3. ~coalton-sqlite/value~
 
-   A DynamicValue type that covers any SQLite value, as well as a
-   SQLiteValue typeclass for binding/reading
+   A ~DynamicValue~ type that covers any SQLite value, as well as a
+   ~SqliteValue~ typeclass for binding/reading
 
 4. ~coalton-sqlite/query~
 
@@ -31,9 +33,16 @@ This system is arranged into 5 packages, increasing in abstraction:
 The query and record packages are probably going to change since I am
 not super happy with them right now.
 
+Everything above the FFI level is reexported into the ~coalton-sqlite~
+package.
+
+* Examples
+
+Using the Query API:
+
 #+begin_src lisp :package coalton-sqlite
   (coalton
-   (with-database ""
+   (with-database ":memory:"
      (fn (db)
        (execute db "create table person (name, age);"
                 mempty)
@@ -48,24 +57,22 @@ not super happy with them right now.
 : ((#.(TEXT "foo") #.(INT -2)) (#.(TEXT "garlic0x1") #.(INT 26)))
 #+end_src
 
-There is an API for Coalton-defined tables but I would not recommend using it
-unless you are very brave.
+Using the Record API:
 
 #+begin_src lisp :package coalton-sqlite
-  (coalton-toplevel
-    (define-table Point
-      (x I64)
-      (y SqliteValue)))
+  (define-record Point
+    (x (Optional I64))
+    (y DynamicValue))
 
   (coalton 
-   (with-database ""
+   (with-database ":memory:"
      (fn (db)
        (create-table db Point)
-       (insert db (Point 1 (Int 2)))
-       (insert db (Point 1 (Text "foo")))
+       (insert db (Point (Some 12) (Int 2)))
+       (insert db (Point None (Text "foo")))
        (the (List Point) (select-all db)))))
 #+end_src
 
 #+begin_src
-: (#.(POINT 1 #.(TEXT "foo")) #.(POINT 1 #.(INT 2)))
+: (#.(POINT #.NONE #.(TEXT "foo")) #.(POINT 12 #.(INT 2)))
 #+end_src
