@@ -24,49 +24,64 @@
 (in-package #:coalton-sqlite/record)
 
 (cl:eval-when (:compile-toplevel :load-toplevel :execute)
-  (cl:defvar *record-registry* (cl:make-hash-table))
-
   (cl:defmacro define-record (name cl:&body slots)
-    (cl:let ((slot-names (cl:mapcar #'cl:first slots)))
-      `(cl:progn
-         (cl:setf (cl:gethash ',name *record-registry*) ',slot-names)
-         (coalton-toplevel 
-           (derive Eq Default)
-           (define-struct ,name ,@slots)
+    (cl:let ((slot-names (cl:mapcar #'cl:first slots))
+             (slot-types (cl:mapcar #'cl:second slots))
+             (slot-meta  (cl:mapcar #'cl:third slots))
+             (schema-name (cl:intern (cl:string-upcase (cl:format cl:nil "*~A-schema*" name)))))
 
-           (define-instance (Record ,name)
-             (inline)
-             (define (record-name _struct) (lisp sym:Symbol () ',name))
+      `(progn
+         ;; Codegen Record type
+         (derive Eq Default)
+         (define-struct ,name
+           ,@(cl:mapcar (cl:lambda (name type) `(,name ,type))
+                        slot-names
+                        slot-types))
 
-             (inline)
-             (define (record-size _struct) (lisp UFix () ,(cl:length slots)))
+         ;; Codegen Record schema
+         (define ,schema-name
+           (RecordSchema
+            (lisp sym:Symbol () ',name)
+            (make-list
+             ,@(cl:mapcar (cl:lambda (name meta)
+                            `(Tuple (lisp sym:Symbol () ',name) ,(cl:or meta "")))
+                          slot-names
+                          slot-meta))))
 
-             (define (bind-record stmt struct)
-               (let (,name ,@slot-names) = struct)
-               ,@(cl:loop
-                    :for i :upfrom 1
-                    :for slot-name :in slot-names
-                    :collect `(value:bind-value stmt ,i ,slot-name)))
+         ;; Codegen Record methods
+         (define-instance (Record ,name)
+           (inline)
+           (define (record-schema _struct) ,schema-name)
 
-             (define (read-record stmt)
-               (,name
-                ,@(cl:loop
-                     :for i :upfrom 0
-                     :for slot-name :in slot-names
-                     :collect `(value:column-value stmt ,i))))))))))
+           (define (bind-record stmt struct)
+             (let (,name ,@slot-names) = struct)
+             ,@(cl:loop
+                  :for i :upfrom 1
+                  :for slot-name :in slot-names
+                  :collect `(value:bind-value stmt ,i ,slot-name)))
+
+           (define (read-record stmt)
+             (,name
+              ,@(cl:loop
+                   :for i :upfrom 0
+                   :for slot-name :in slot-names
+                   :collect `(value:column-value stmt ,i)))))))))
 
 (coalton-toplevel
+  (define-struct RecordSchema
+    (name sym:Symbol)
+    (columns (List (Tuple sym:Symbol String))))
+
   (define-class (Record :t)
-    (record-name (:t -> sym:Symbol))
-    (record-size (:t -> UFix))
+    (record-schema (:t -> RecordSchema))
     (bind-record (sqlite:Statement -> :t -> Unit))
     (read-record (sqlite:Statement -> :t))))
 
-(coalton-toplevel 
+(coalton-toplevel
   (declare insert (Record :t => sqlite:Database -> :t -> Unit))
   (define (insert db record)
-    (let name = (record-name record))
-    (let size = (record-size record))
+    (let (RecordSchema name columns) = (record-schema record))
+    (let size = (length columns))
     (let sql =
       (lisp String (name size)
         (cl:format cl:nil "INSERT INTO ~A VALUES (~{~A~^, ~})"
@@ -78,37 +93,33 @@
         (sqlite:step-statement stmt)
         Unit)))
 
-  (declare select-all ((types:RuntimeRepr :t) (Record :t) => sqlite:Database -> (List :t)))
-  (define (select-all db)
-    (let prox = types:Proxy)
-    (let type = (types:runtime-repr (types:proxy-inner prox)))
+  (declare select-all ((Record :t) => sqlite:Database -> RecordSchema -> (List :t)))
+  (define (select-all db schema)
+    (let (RecordSchema name columns) = schema)
+    (let column-names = (map fst columns))
     (let sql =
-      (lisp String (type)
+      (lisp String (name column-names)
         (cl:format cl:nil "SELECT ~{~A~^, ~} FROM ~A"
-                   (cl:gethash type *record-registry*)
-                   type)))
-    (types:as-proxy-of
-     (sqlite:with-statement db sql
-       (fn (stmt)
-         (rec f ((continue? (sqlite:step-statement stmt)) (acc Nil))
-           (if (not continue?)
-               acc
-               (let ((row (read-record stmt)))
-                 (f (sqlite:step-statement stmt) (Cons row acc))))) ))
-     prox))
+                   column-names
+                   name)))
+    (sqlite:with-statement db sql
+      (fn (stmt)
+        (rec f ((continue? (sqlite:step-statement stmt)) (acc Nil))
+          (if (not continue?)
+              acc
+              (let ((row (read-record stmt)))
+                (f (sqlite:step-statement stmt) (Cons row acc))))))))
 
-  (declare create-table* (sqlite:Database -> sym:Symbol -> Unit))
-  (define (create-table* db type)
+  (declare create-table (sqlite:Database -> RecordSchema -> Unit))
+  (define (create-table db schema)
+    (let (RecordSchema name columns) = schema)
+    (let columns = (map (fn ((Tuple name meta))
+                          (lisp String (name meta)
+                            (cl:format cl:nil "~A ~A" name meta)))
+                        columns))
     (let sql =
-      (lisp String (type)
+      (lisp String (name columns)
         (cl:format cl:nil "CREATE TABLE IF NOT EXISTS ~A (~{~A~^, ~})"
-                   type
-                   (cl:gethash type *record-registry*))))
+                   name
+                   columns)))
     (coalton-sqlite/query:execute db sql mempty)))
-
-(cl:defmacro create-table (db type)
-  `(create-table* ,db (lisp sym:Symbol () ',type)))
-
-(define-record Point
-  (x I64)
-  (y I64))
