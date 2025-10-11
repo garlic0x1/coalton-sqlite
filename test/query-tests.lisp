@@ -17,15 +17,17 @@
        (Text "garlic")
        (with-database ":memory:"
          (fn (db)
-           (execute db "create table users
+           (with-transaction db
+             (fn () 
+               (execute db "create table users
                          (id integer primary key,
                           user_name text not null,
                           age integer null)"
-                    mempty)
-           (execute db "insert into users (user_name, age) values (?, ?);"
-                    (make-list (Text "garlic") (Int 26)))
-           (with-statement db "select * from users where age = ?;"
-             (fn (stmt)
-               (bind-value stmt 1 (Int 26))
-               (step-statement stmt)
-               (column-value stmt 1))))))))
+                        mempty)
+               (execute db "insert into users (user_name, age) values (?, ?);"
+                        (make-list (Text "garlic") (Int 26)))
+               (with-statement db "select * from users where age = ?;"
+                 (fn (stmt)
+                   (bind-value stmt 1 (Int 26))
+                   (step-statement stmt)
+                   (column-value stmt 1))))))))))

@@ -84,7 +84,7 @@
     (lisp :t (db func)
       (cl:let ((ok? cl:nil)) 
         (cl:unwind-protect
-             (cl:prog1 (call-coalton-function func db)
+             (cl:prog1 (call-coalton-function func Unit)
                (cl:setf ok? cl:t))
           (cl:if ok?
                  (call-coalton-function execute-string db "COMMIT TRANSACTION")

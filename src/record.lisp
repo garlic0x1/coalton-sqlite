@@ -46,7 +46,13 @@
              ,@(cl:mapcar (cl:lambda (name meta)
                             `(Tuple (lisp sym:Symbol () ',name) ,(cl:or meta "")))
                           slot-names
-                          slot-meta))))
+                          slot-meta))
+            ,(cl:format cl:nil "INSERT INTO ~A VALUES (~{~A~^, ~})"
+                        name
+                        (cl:loop :repeat (cl:length slots) :collect "?"))
+            ,(cl:format cl:nil "SELECT ~{~A~^, ~} FROM ~A"
+                        slot-names
+                        name)))
 
          ;; Codegen Record methods
          (define-instance (Record ,name)
@@ -70,7 +76,9 @@
 (coalton-toplevel
   (define-struct RecordSchema
     (name sym:Symbol)
-    (columns (List (Tuple sym:Symbol String))))
+    (columns (List (Tuple sym:Symbol String)))
+    (insert-sql String)
+    (select-sql String))
 
   (define-class (Record :t)
     (record-schema (:t -> RecordSchema))
@@ -80,14 +88,7 @@
 (coalton-toplevel
   (declare insert (Record :t => sqlite:Database -> :t -> Unit))
   (define (insert db record)
-    (let (RecordSchema name columns) = (record-schema record))
-    (let size = (length columns))
-    (let sql =
-      (lisp String (name size)
-        (cl:format cl:nil "INSERT INTO ~A VALUES (~{~A~^, ~})"
-                   name
-                   (cl:loop :repeat size :collect "?"))))
-    (sqlite:with-statement db sql
+    (sqlite:with-statement db (.insert-sql (record-schema record))
       (fn (stmt)
         (bind-record stmt record)
         (sqlite:step-statement stmt)
@@ -95,14 +96,7 @@
 
   (declare select-all ((Record :t) => sqlite:Database -> RecordSchema -> (List :t)))
   (define (select-all db schema)
-    (let (RecordSchema name columns) = schema)
-    (let column-names = (map fst columns))
-    (let sql =
-      (lisp String (name column-names)
-        (cl:format cl:nil "SELECT ~{~A~^, ~} FROM ~A"
-                   column-names
-                   name)))
-    (sqlite:with-statement db sql
+    (sqlite:with-statement db (.select-sql schema)
       (fn (stmt)
         (rec f ((continue? (sqlite:step-statement stmt)) (acc Nil))
           (if (not continue?)
@@ -112,7 +106,7 @@
 
   (declare create-table (sqlite:Database -> RecordSchema -> Unit))
   (define (create-table db schema)
-    (let (RecordSchema name columns) = schema)
+    (let (RecordSchema name columns _ _) = schema)
     (let columns = (map (fn ((Tuple name meta))
                           (lisp String (name meta)
                             (cl:format cl:nil "~A ~A" name meta)))
