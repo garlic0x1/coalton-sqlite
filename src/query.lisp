@@ -8,9 +8,11 @@
    (#:value #:coalton-sqlite/value))
   (:export
    #:execute
+   #:execute-string
    #:query
    #:query-one
-   #:do-rows))
+   #:do-rows
+   #:with-transaction))
 
 (in-package #:coalton-sqlite/query)
 
@@ -38,6 +40,13 @@
         (bind-values stmt params)
         (sqlite:step-statement stmt)
         Unit))) 
+
+  (declare execute-string (sqlite:Database -> String -> Unit))
+  (define (execute-string db sql)
+    (sqlite:with-statement db sql
+      (fn (stmt)
+        (sqlite:step-statement stmt)
+        Unit)))
 
   (declare query (sqlite:Database -> String -> (List value:DynamicValue) -> (List (List value:DynamicValue))))
   (define (query db sql params)
@@ -67,5 +76,17 @@
         (rec f ((continue? (sqlite:step-statement stmt)))
           (func (column-values stmt))
           (when continue?
-            (f (sqlite:step-statement stmt))))))))
+            (f (sqlite:step-statement stmt)))))))
+
+  (declare with-transaction (sqlite:Database -> (Unit -> :t) -> :t))
+  (define (with-transaction db func)
+    (execute-string db "BEGIN TRANSACTION")
+    (lisp :t (db func)
+      (cl:let ((ok? cl:nil)) 
+        (cl:unwind-protect
+             (cl:prog1 (call-coalton-function func db)
+               (cl:setf ok? cl:t))
+          (cl:if ok?
+                 (call-coalton-function execute-string db "COMMIT TRANSACTION")
+                 (call-coalton-function execute-string db "ROLLBACK TRANSACTION")))))))
 
