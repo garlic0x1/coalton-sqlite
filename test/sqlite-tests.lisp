@@ -1,12 +1,12 @@
 (in-package #:coalton-sqlite/test)
 
 (define-test test-connect ()
-  (with-database ":memory:"
+  (with-database ":memory:" None
     (fn (_) Unit)))
 
 (define-test test-basic-statements ()
   (is (== (Tuple "user_name" "garlic")
-          (with-database ":memory:"
+          (with-database ":memory:" None
             (fn (db)
               (with-statement db
                 "create table users

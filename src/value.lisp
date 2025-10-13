@@ -6,6 +6,7 @@
    (#:vec #:coalton-library/vector)
    (#:cell #:coalton-library/cell)
    (#:ffi #:coalton-sqlite/ffi)
+   (#:const #:coalton-sqlite/constants)
    (#:sqlite #:coalton-sqlite/sqlite))
   (:export
    #:DynamicValue
@@ -84,14 +85,14 @@
          (define (column-value stmt index)
            (match (sqlite:column-type stmt index)
              ((,sqlite-type) (Some (,reader stmt index)))
-             ((sqlite:SqliteNull) None)
+             ((const:SqliteNull) None)
              (_ (sqlite::throw-sqlite 20) None)))))))
 
 (coalton-toplevel
-  (define-sqlite-value I64 sqlite:bind-i64 sqlite:column-i64 sqlite:SqliteInt)
-  (define-sqlite-value F64 sqlite:bind-f64 sqlite:column-f64 sqlite:SqliteFloat)
-  (define-sqlite-value String sqlite:bind-text sqlite:column-text sqlite:SqliteText)
-  (define-sqlite-value (vec:Vector U8) sqlite:bind-blob sqlite:column-blob sqlite:SqliteBlob)
+  (define-sqlite-value I64 sqlite:bind-i64 sqlite:column-i64 const:SqliteInt)
+  (define-sqlite-value F64 sqlite:bind-f64 sqlite:column-f64 const:SqliteFloat)
+  (define-sqlite-value String sqlite:bind-text sqlite:column-text const:SqliteText)
+  (define-sqlite-value (vec:Vector U8) sqlite:bind-blob sqlite:column-blob const:SqliteBlob)
 
   (define-instance (SqliteValue DynamicValue)
     (inline)

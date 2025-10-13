@@ -5,7 +5,7 @@
        (make-list
         (make-list (Int 2) (Int -2))
         (make-list (Int 0) (Int 0)))
-       (with-database ":memory:"
+       (with-database ":memory:" None
          (fn (db)
            (execute db "create table pnt (x, y);" mempty)
            (execute db "insert into pnt values (?, ?)" (make-list (Int 0) (Int 0)))
@@ -15,7 +15,7 @@
 (define-test test-basic-execute-statements ()
   (is (==
        (Text "garlic")
-       (with-database ":memory:"
+       (with-database ":memory:" None
          (fn (db)
            (with-transaction db
              (fn () 

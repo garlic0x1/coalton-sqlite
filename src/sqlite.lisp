@@ -3,45 +3,10 @@
    #:coalton
    #:coalton-prelude)
   (:local-nicknames
+   (#:const #:coalton-sqlite/constants)
    (#:vec #:coalton-library/vector)
    (#:ffi #:coalton-sqlite/ffi))
   (:export
-   #:SqliteError
-   #:ErrOk
-   #:ErrError
-   #:ErrInternal
-   #:ErrPerm
-   #:ErrAbort
-   #:ErrBusy
-   #:ErrLocked
-   #:ErrNoMem
-   #:ErrReadOnly
-   #:ErrInterrupt
-   #:ErrIOErr
-   #:ErrCorrupt
-   #:ErrNotFound
-   #:ErrFull
-   #:ErrCantOpen
-   #:ErrProtocol
-   #:ErrEmpty
-   #:ErrSchema
-   #:ErrTooBig
-   #:ErrConstraint
-   #:ErrMismatch
-   #:ErrMisuse
-   #:ErrNoLFS
-   #:ErrAuth
-   #:ErrFormat
-   #:ErrRange
-   #:ErrNotADb
-   #:ErrRow
-   #:ErrDone
-   #:SqliteType
-   #:SqliteInt
-   #:SqliteFloat
-   #:SqliteText
-   #:SqliteBlob
-   #:SqliteNull
    #:Database
    #:Statement
    #:SqliteCondition
@@ -49,6 +14,7 @@
    #:maybe-throw-sqlite
    #:open-database
    #:close-database
+   #:database-filename
    #:with-database
    #:prepare-statement
    #:finalize-statement
@@ -73,75 +39,9 @@
 
 (in-package #:coalton-sqlite/sqlite)
 
-(coalton-toplevel
-  (define-class (Enum :a :b)
-    (dump (:a -> :b))
-    (load (:b -> :a))))
-
-(cl:defmacro define-enum (name type cl:&body ctors)
-  `(progn
-     (derive Eq)
-     (define-type ,name
-       ,@(cl:mapcar #'cl:first ctors))
-     (define-instance (Enum ,name ,type)
-       (define (load value)
-         (match value
-           ,@(cl:mapcar
-              (cl:lambda (ctor)
-                `(,(cl:eval (cl:second ctor))
-                  ,(cl:first ctor)))
-              ctors)
-           (x (lisp ,name (x) (cl:error "Invalid error code ~A" x)))))
-       (define (dump enum)
-         (match enum
-           ,@(cl:mapcar
-              (cl:lambda (ctor)
-                `((,(cl:first ctor))
-                  ,(cl:eval (cl:second ctor))))
-              ctors))))))
-
 (cl:defmacro ignore-errors (cl:&body body)
   `(catch (progn ,@body Unit)
      (_ Unit)))
-
-(coalton-toplevel
-  (define-enum SqliteError U8
-    (ErrOk         0)
-    (ErrError      1)
-    (ErrInternal   2)
-    (ErrPerm       3)
-    (ErrAbort      4)
-    (ErrBusy       5)
-    (ErrLocked     6)
-    (ErrNoMem      7)
-    (ErrReadOnly   8)
-    (ErrInterrupt  9)
-    (ErrIOErr      10)
-    (ErrCorrupt    11)
-    (ErrNotFound   12)
-    (ErrFull       13)
-    (ErrCantOpen   14)
-    (ErrProtocol   15)
-    (ErrEmpty      16)
-    (ErrSchema     17)
-    (ErrTooBig     18)
-    (ErrConstraint 19)
-    (ErrMismatch   20)
-    (ErrMisuse     21)
-    (ErrNoLFS      22)
-    (ErrAuth       23)
-    (ErrFormat     24)
-    (ErrRange      25)
-    (ErrNotADb     26)
-    (ErrRow        100)
-    (ErrDone       101))
-
-  (define-enum SqliteType U8
-    (SqliteInt   1)
-    (SqliteFloat 2)
-    (SqliteText  3)
-    (SqliteBlob  4)
-    (SqliteNull  5)))
 
 (coalton-toplevel
   (repr :native cffi:foreign-pointer)
@@ -151,28 +51,41 @@
   (define-type Statement)
 
   (define-exception SqliteCondition
-    (SqliteCondition SqliteError)
+    (SqliteCondition const:SqliteError)
     (LispCondition String)))
 
 (coalton-toplevel
   (inline)
   (declare throw-sqlite (U8 -> Unit))
   (define (throw-sqlite x)
-    (throw (SqliteCondition (the SqliteError (load x)))))
+    (throw (SqliteCondition (the const:SqliteError (const:load x)))))
 
   (inline)
   (declare maybe-throw-sqlite (U8 -> Unit))
   (define (maybe-throw-sqlite x)
     (unless (zero? x)
-      (throw (SqliteCondition (the SqliteError (load x)))))))
+      (throw (SqliteCondition (the const:SqliteError (const:load x)))))))
 
 (coalton-toplevel
-  (declare open-database (String -> Database))
-  (define (open-database path)
-    (lisp Database (path)
-      (cffi:with-foreign-object (db 'ffi:p-sqlite3)
-        (maybe-throw-sqlite (ffi:sqlite3-open path db))
-        (cffi:mem-ref db :pointer))))
+  (declare open-database (String -> (Optional (List const:SqliteOpenFlag)) -> Database))
+  (define (open-database path flags)
+    (match flags
+      ((None) 
+       (lisp Database (path)
+         (cffi:with-foreign-object (db 'ffi:p-sqlite3)
+           (maybe-throw-sqlite (ffi:sqlite3-open path db))
+           (cffi:mem-ref db :pointer))))
+      ((Some flags)
+       (let flags = (map const:dump flags))
+       (lisp Database (path flags)
+         (cffi:with-foreign-object (db 'ffi:p-sqlite3)
+           (maybe-throw-sqlite
+            (ffi:sqlite3-open-v2
+             path
+             db
+             (cl:reduce #'cl:logior flags)
+             (cffi:null-pointer)))
+           (cffi:mem-ref db :pointer))))))
 
   (declare close-database (Database -> Unit))
   (define (close-database db)
@@ -185,9 +98,14 @@
       (maybe-throw-sqlite 
        (ffi:sqlite3-key-v3 db (cffi:null-pointer) key (cl:length key) (cffi:null-pointer)))))
 
-  (declare with-database (String -> (Database -> :t) -> :t))
-  (define (with-database path func)
-    (let db = (open-database path))
+  (declare database-filename (Database -> String))
+  (define (database-filename db)
+    (lisp String (db)
+      (ffi:sqlite3-db-filename)))
+
+  (declare with-database (String -> (Optional (List const:SqliteOpenFlag)) -> (Database -> :t) -> :t))
+  (define (with-database path flags func)
+    (let db = (open-database path flags))
     (lisp :t (func db)
       (cl:unwind-protect (call-coalton-function func db)
         (call-coalton-function close-database db))))
@@ -232,9 +150,9 @@
       (ffi:sqlite3-column-count stmt)))
 
   (inline)
-  (declare column-type (Statement -> UFix -> SqliteType))
+  (declare column-type (Statement -> UFix -> const:SqliteType))
   (define (column-type stmt index)
-    (load
+    (const:load
      (lisp U8 (stmt index)
        (ffi:sqlite3-column-type stmt index))))
 
@@ -303,8 +221,7 @@
 
   (declare bind-text (Statement -> UFix -> String -> Unit))
   (define (bind-text stmt index x)
-    (let size = (coalton-library/string:length x))
-    (lisp Unit (stmt index x size)
+    (lisp Unit (stmt index x)
       (maybe-throw-sqlite (ffi:sqlite3-bind-text stmt index x -1 (ffi:destructor-transient)))))
 
   (inline)

@@ -2,7 +2,7 @@
 
 (define-test test-value-methods ()
   (is (== (Tuple 1 (Float 1d-19)) 
-          (with-database ":memory:"
+          (with-database ":memory:" None
             (fn (db)
               (with-statement db "create table pnt (x, y)"
                 step-statement)
@@ -20,7 +20,7 @@
 
 (define-test test-value-bind-macro ()
   (is (== (Tuple 1 "test") 
-          (with-database ":memory:"
+          (with-database ":memory:" None
             (fn (db)
               (with-statement db "create table pnt (x, y)"
                 step-statement)

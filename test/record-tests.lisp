@@ -11,7 +11,7 @@
         (Point 1 (Text "foo"))
         (Point 1 (Int 2))) 
        (the (List Point) 
-            (with-database ""
+            (with-database "" None
               (fn (db)
                 (create-table db *point-schema*)
                 (insert db (Point 1 (Int 2)))

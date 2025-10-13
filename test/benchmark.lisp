@@ -2,7 +2,7 @@
 
 (coalton-toplevel  
 
-  (define-table MyRecord
+  (define-record MyRecord
     (x (coalton-library/cell:Cell String))
     (y String)
     (z I64))
@@ -10,13 +10,15 @@
   (monomorphize)
   (declare benchmark-table-insert (Ufix -> Unit))
   (define (benchmark-table-insert n) 
-    (with-database "/tmp/coalton-sqlite-benchmark.sqlite3"
+    (with-database "/tmp/coalton-sqlite-benchmark2.sqlite3"
+      (Some (make-list OpenCreate OpenReadWrite))
       (fn (db)
-        (execute db "PRAGMA journal_mode = MEMORY;" mempty)
-        (execute db "PRAGMA temp_store = MEMORY;" mempty)
-        (execute db "PRAGMA synchronous = NORMAL;" mempty)
-        (execute db "PRAGMA locking_mode = EXCLUSIVE;" mempty)
-        (create-table db MyRecord)
+        (coalton-sqlite:execute-string db "PRAGMA journal_mode=WAL;")
+        ;; (execute db "PRAGMA journal_mode = MEMORY;" mempty)
+        ;; (execute db "PRAGMA temp_store = MEMORY;" mempty)
+        ;; (execute db "PRAGMA synchronous = NORMAL;" mempty)
+        ;; (execute db "PRAGMA locking_mode = EXCLUSIVE;" mempty)
+        (create-table db *myrecord-schema*)
         (execute db "BEGIN TRANSACTION" mempty)
         (coalton-library/experimental:dotimes (i n)
           (insert db (MyRecord (coalton-library/cell:new "hello world this is the X slot")
@@ -26,18 +28,18 @@
         Unit)))
 
   (define (benchmark-simple-insert n)
-    (with-database "/tmp/coalton-sqlite-benchmark.sqlite3"
+    (with-database "/tmp/coalton-sqlite-benchmark.sqlite3" None
       (fn (db)
-        (create-table db MyRecord)
+        (create-table db *myrecord-schema*)
         (coalton-library/experimental:dotimes (i n)
           (execute db "insert into myrecord values (?, ?, ?)"
                    (make-list (Text "x") (Text "x") (Int (into i))))))))
 
   (define (benchmark-stmt-insert n)
-    (with-database "/tmp/coalton-sqlite-benchmark2.sqlite3"
+    (with-database "/tmp/coalton-sqlite-benchmark2.sqlite3" None
       (fn (db)
         (execute db "pragma journal_mode = MEMORY;" mempty)
-        (create-table db MyRecord)
+        (create-table db *myrecord-schema*)
         (coalton-library/experimental:dotimes (i n)
           (traceobject "i" i)
           (with-statement db "insert into myrecord values (?, ?, ?)"

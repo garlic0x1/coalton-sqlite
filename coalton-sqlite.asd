@@ -4,6 +4,7 @@
   :depends-on ("coalton" "cffi")
   :components ((:module "src"
                 :components ((:file "ffi")
+                             (:file "constants")
                              (:file "sqlite")
                              (:file "value")
                              (:file "query")

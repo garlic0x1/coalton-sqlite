@@ -5,11 +5,12 @@
   (:export
    #:error-code
    #:p-sqlite3
+   #:p-sqlite3-stmt
    #:sqlite3-open
+   #:sqlite3-open-v2
    #:sqlite3-close
    #:sqlite3-errmsg
    #:sqlite3-busy-timeout
-   #:p-sqlite3-stmt
    #:sqlite3-prepare
    #:sqlite3-finalize
    #:sqlite3-step
@@ -36,6 +37,7 @@
    #:sqlite3-last-insert-rowid
    #:sqlite3-key-v3
    #:sqlite3-activate-see
+   #:sqlite3-db-filename
    ))
 
 (in-package #:coalton-sqlite/ffi)
@@ -58,6 +60,12 @@
 (defcfun sqlite3-open error-code
   (filename :string)
   (db (:pointer p-sqlite3)))
+
+(defcfun sqlite3-open-v2 error-code
+  (filename :string)
+  (db (:pointer p-sqlite3))
+  (flags :int)
+  (zvfs :string))
 
 (defcfun sqlite3-close error-code
   (db p-sqlite3))
@@ -182,3 +190,7 @@
 
 (defcfun sqlite3-activate-sse :int
   (activation-code :string))
+
+(defcfun sqlite3-db-filename :string
+  (db p-sqlite3)
+  (z-db-name :string))

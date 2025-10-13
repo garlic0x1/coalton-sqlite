@@ -3,6 +3,7 @@
    #:coalton
    #:coalton-prelude)
   (:use-reexport
+   #:coalton-sqlite/constants
    #:coalton-sqlite/sqlite
    #:coalton-sqlite/value
    #:coalton-sqlite/query
