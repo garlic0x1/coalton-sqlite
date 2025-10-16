@@ -61,27 +61,28 @@
     (dump (:a -> :b))
     (load (:b -> :a))))
 
-(cl:defmacro define-enum (name type cl:&body ctors)
-  `(progn
-     (derive Eq)
-     (define-type ,name
-       ,@(cl:mapcar #'cl:first ctors))
-     (define-instance (Enum ,name ,type)
-       (define (load value)
-         (match value
-           ,@(cl:mapcar
-              (cl:lambda (ctor)
-                `(,(cl:eval (cl:second ctor))
-                  ,(cl:first ctor)))
-              ctors)
-           (x (lisp ,name (x) (cl:error "Invalid error code ~A" x)))))
-       (define (dump enum)
-         (match enum
-           ,@(cl:mapcar
-              (cl:lambda (ctor)
-                `((,(cl:first ctor))
-                  ,(cl:eval (cl:second ctor))))
-              ctors))))))
+(cl:eval-when (:compile-toplevel :load-toplevel :execute) 
+  (cl:defmacro define-enum (name type cl:&body ctors)
+    `(progn
+       (derive Eq)
+       (define-type ,name
+         ,@(cl:mapcar #'cl:first ctors))
+       (define-instance (Enum ,name ,type)
+         (define (load value)
+           (match value
+             ,@(cl:mapcar
+                (cl:lambda (ctor)
+                  `(,(cl:eval (cl:second ctor))
+                    ,(cl:first ctor)))
+                ctors)
+             (x (lisp ,name (x) (cl:error "Invalid error code ~A" x)))))
+         (define (dump enum)
+           (match enum
+             ,@(cl:mapcar
+                (cl:lambda (ctor)
+                  `((,(cl:first ctor))
+                    ,(cl:eval (cl:second ctor))))
+                ctors)))))))
 
 (coalton-toplevel
   (define-enum SqliteError U8
