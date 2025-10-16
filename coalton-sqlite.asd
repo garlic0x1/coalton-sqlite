@@ -8,7 +8,6 @@
                              (:file "sqlite")
                              (:file "value")
                              (:file "query")
-                             (:file "record")
                              (:file "package"))))
   :in-order-to ((test-op (test-op "coalton-sqlite/test"))))
 
@@ -18,8 +17,7 @@
                 :components ((:file "package")
                              (:file "sqlite-tests")
                              (:file "value-tests")
-                             (:file "query-tests")
-                             (:file "record-tests"))))
+                             (:file "query-tests"))))
   :perform (asdf:test-op
             (o s)
             (uiop:symbol-call '#:coalton-sqlite/test '#:run-tests)))
