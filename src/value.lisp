@@ -17,6 +17,7 @@
    #:Blob
    #:column-dynamic-value
    #:bind-dynamic-value
+   #:SqliteValue
    #:column-value
    #:bind-value
    #:bind-values

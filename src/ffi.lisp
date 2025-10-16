@@ -13,6 +13,7 @@
    #:sqlite3-busy-timeout
    #:sqlite3-prepare
    #:sqlite3-finalize
+   #:sqlite3-db-handle
    #:sqlite3-step
    #:sqlite3-reset
    #:sqlite3-clear-bindings
@@ -89,6 +90,9 @@
   (tail (:pointer (:pointer :char))))
 
 (defcfun sqlite3-finalize error-code
+  (statement p-sqlite3-stmt))
+
+(defcfun sqlite3-db-handle p-sqlite3
   (statement p-sqlite3-stmt))
 
 (defcfun sqlite3-step error-code

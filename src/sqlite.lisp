@@ -18,6 +18,7 @@
    #:with-database
    #:prepare-statement
    #:finalize-statement
+   #:statement-database
    #:with-statement
    #:step-statement
    #:column-count
@@ -125,6 +126,11 @@
   (define (finalize-statement stmt)
     (lisp Unit (stmt)
       (maybe-throw-sqlite (ffi:sqlite3-finalize stmt))))
+
+  (declare statement-database (Statement -> Database))
+  (define (statement-database stmt)
+    (lisp Database (stmt) 
+      (ffi:sqlite3-db-handle stmt)))
 
   (declare with-statement (Database -> String -> (Statement -> :t) -> :t))
   (define (with-statement db sql func)
