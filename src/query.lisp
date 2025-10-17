@@ -11,6 +11,7 @@
    #:execute-string
    #:query
    #:query-one
+   #:query-one-column
    #:do-rows
    #:with-transaction))
 
@@ -67,6 +68,15 @@
         (if (not (sqlite:step-statement stmt))
             None
             (Some (column-values stmt))))))
+
+  (declare query-one-column (sqlite:Database -> String -> (List value:DynamicValue) -> (Optional value:DynamicValue)))
+  (define (query-one-column db sql params)
+    (sqlite:with-statement db sql
+      (fn (stmt)
+        (bind-values stmt params)
+        (if (not (sqlite:step-statement stmt))
+            None
+            (Some (value:column-dynamic-value stmt 0))))))
 
   (declare do-rows (sqlite:Database -> String -> (List value:DynamicValue) -> ((List value:DynamicValue) -> Unit) -> Unit))
   (define (do-rows db sql params func)
