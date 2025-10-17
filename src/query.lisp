@@ -92,6 +92,7 @@ the first row found."
 
   (declare do-rows (sqlite:Database -> String -> (List value:DynamicValue) -> ((List value:DynamicValue) -> Unit) -> Unit))
   (define (do-rows db sql params func)
+    "Call `func' on every row yielded by a query."
     (sqlite:with-statement db sql
       (fn (stmt)
         (bind-values stmt params)

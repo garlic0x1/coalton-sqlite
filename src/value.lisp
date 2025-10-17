@@ -30,6 +30,7 @@
   ;; requires (Eq LispArray) to be implemented.
   (derive Eq Hash)
   (define-type DynamicValue
+    "A union type that represents all possible SQLite values."
     Null
     (Int   I64)
     (Float F64)
@@ -65,6 +66,7 @@
 
 (coalton-toplevel
   (define-class (SqliteValue :t)
+    "Objects that can be bound and read from statements."
     (column-value
      "Read a value from column."
      (sqlite:Statement -> UFix -> :t))
