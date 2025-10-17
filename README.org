@@ -2,6 +2,8 @@
 
 SQLite Bindings for Coalton
 
+See [[./REFERENCE.md][the reference]] for complete documentation.
+
 * Motivation
 
 This system intends to a be minimal and efficient binding to SQLite.
