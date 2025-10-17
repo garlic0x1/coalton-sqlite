@@ -25,7 +25,7 @@ jobs:
           set -ex
           sbcl --disable-debugger \
                --load /root/quicklisp/setup.lisp \
-               --eval '(ql:update-all-dists)' \
+               --eval '(ql:update-all-dists :prompt nil)' \
                --load coalton-sqlite.asd \
                --eval '(ql:quickload :coalton-sqlite/test)' \
                --eval '(asdf:test-system :coalton-sqlite/test)' \
