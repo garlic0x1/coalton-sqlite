@@ -42,18 +42,20 @@
   (inline)
   (declare column-dynamic-value (sqlite:Statement -> UFix -> DynamicValue))
   (define (column-dynamic-value stmt index)
+    "Read a dynamic value from column."
     (match (lisp U8 (stmt index) (ffi:sqlite3-column-type stmt index))
       (1 (Int   (sqlite:column-i64 stmt index)))
       (2 (Float (sqlite:column-f64 stmt index)))
       (3 (Text  (sqlite:column-text stmt index)))
       (4 (Blob  (sqlite:column-blob stmt index)))
       (5 Null)
-      (_ (sqlite:throw-sqlite 1) Null)))
+      (_ (sqlite::throw-sqlite 1) Null)))
 
 
   (inline)
   (declare bind-dynamic-value (sqlite:Statement -> UFix -> DynamicValue -> Unit))
   (define (bind-dynamic-value stmt index value)
+    "Bind a dynamic value to statement."
     (match value
       ((Int x)   (sqlite:bind-i64 stmt index x))
       ((Float x) (sqlite:bind-f64 stmt index x))
@@ -63,8 +65,12 @@
 
 (coalton-toplevel
   (define-class (SqliteValue :t)
-    (column-value (sqlite:Statement -> UFix -> :t))
-    (bind-value   (sqlite:Statement -> UFix -> :t -> Unit))))
+    (column-value
+     "Read a value from column."
+     (sqlite:Statement -> UFix -> :t))
+    (bind-value
+     "Bind a value to statement."
+     (sqlite:Statement -> UFix -> :t -> Unit))))
 
 (cl:eval-when (:compile-toplevel :load-toplevel :execute)
   (cl:defmacro define-sqlite-value (type binder reader sqlite-type)
