@@ -35,9 +35,9 @@ This system is arranged into 5 packages, increasing in abstraction:
 
    A few high-level query functions, they deal with ~(List DynamicValue)~
 
-The query and package might change, but right now it is a useful
-enough high-level interface.  The primary complaint I have is
-defaulting to lists of ~DynamicValue~ types.
+The query package might change, but right now it is a useful enough
+high-level interface.  The primary complaint I have is defaulting to
+lists of ~DynamicValue~ types.
 
 Everything above the FFI level is reexported into the ~coalton-sqlite~
 package.
