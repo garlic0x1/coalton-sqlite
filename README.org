@@ -2,6 +2,14 @@
 
 SQLite Bindings for Coalton
 
+* Motivation
+
+This system intends to a be minimal and efficient binding to SQLite.
+
+Initially I thought I would simply wrap [[https://github.com/TeMPOraL/cl-sqlite][cl-sqlite]], but that library
+does runtime computation that we don't need in Coalton when it comes
+to binding and reading values from statements.
+
 * Overview
 
 This system is arranged into 5 packages, increasing in abstraction:
@@ -34,24 +42,39 @@ defaulting to lists of ~DynamicValue~ types.
 Everything above the FFI level is reexported into the ~coalton-sqlite~
 package.
 
-* Motivation
-
-This system intends to a be minimal and efficient binding to SQLite.
-
-Initially I thought I would simply wrap [[https://github.com/TeMPOraL/cl-sqlite][cl-sqlite]], but that library
-does runtime computation that we don't need in Coalton when it comes
-to binding and reading values from statements.
-
 * Examples
 
-Using the Query API:
+** Basic API
 
 #+begin_src lisp :package coalton-sqlite
   (coalton
-   (with-database ":memory:"
+   (with-database ":memory:" None
      (fn (db)
-       (execute db "create table person (name, age);"
-                mempty)
+       (execute-string db "create table person (name, age);")
+       (with-statement db "insert into person values (?, ?)"
+         (fn (stmt)
+           (bind-text stmt 1 "garlic0x1")
+           (bind-i64 stmt 2 26)
+           (step-statement stmt)))
+       (with-statement db "select * from person"
+         (fn (stmt)
+           (step-statement stmt)
+           (Tuple
+            (column-text stmt 0)
+            (column-i64 stmt 1)))))))
+#+end_src
+
+#+begin_src lisp
+: #.(TUPLE "garlic0x1" 26)
+#+end_src
+
+** Query API
+
+#+begin_src lisp :package coalton-sqlite
+  (coalton
+   (with-database ":memory:" None
+     (fn (db)
+       (execute-string db "create table person (name, age);")
        (execute db "insert into person values (?, ?)"
                 (make-list (Text "garlic0x1") (Int 26)))
        (execute db "insert into person values (?, ?)"
@@ -62,4 +85,3 @@ Using the Query API:
 #+begin_src lisp
 : ((#.(TEXT "foo") #.(INT -2)) (#.(TEXT "garlic0x1") #.(INT 26)))
 #+end_src
-
