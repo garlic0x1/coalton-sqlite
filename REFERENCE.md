@@ -237,13 +237,13 @@
 
 ### DYNAMICVALUE :: *\**
 
-> nil
+> A union type that represents all possible SQLite values.
 
 ## Classes
 
 ### SQLITEVALUE :: *[(A) :: (\*)]*
 
-> nil
+> Objects that can be bound and read from statements.
 
 - #### COLUMN-VALUE :: *∀ A. SQLITEVALUE A ⇒ (STATEMENT → UFIX → A)*
 
@@ -320,7 +320,7 @@
 
 ### DO-ROWS :: *(DATABASE → STRING → (LIST DYNAMICVALUE) → ((LIST DYNAMICVALUE) → UNIT) → UNIT)*
 
-> NIL
+> Call \`func' on every row yielded by a query.
 
 ### QUERY :: *(DATABASE → STRING → (LIST DYNAMICVALUE) → (LIST (LIST DYNAMICVALUE)))*
 
