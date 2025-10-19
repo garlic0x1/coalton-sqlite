@@ -14,7 +14,7 @@ to binding and reading values from statements.
 
 * Overview
 
-This system is arranged into 5 packages, increasing in abstraction:
+This system is arranged into 6 packages, increasing in abstraction:
 
 1. ~coalton-sqlite/ffi~
 
@@ -36,6 +36,11 @@ This system is arranged into 5 packages, increasing in abstraction:
 5. ~coalton-sqlite/query~
 
    A few high-level query functions, they deal with ~(List DynamicValue)~
+
+6. ~coalton-sqlite/cache~
+
+   A FIFO cache for prepared statements, in some cases you might want
+   to use this for performance optimization.
 
 The query package might change, but right now it is a useful enough
 high-level interface.  The primary complaint I have is defaulting to
@@ -86,4 +91,27 @@ package.
 
 #+begin_src lisp
 : ((#.(TEXT "foo") #.(INT -2)) (#.(TEXT "garlic0x1") #.(INT 26)))
+#+end_src
+
+** Statement Cache API
+
+#+begin_src lisp :package coalton-sqlite
+  (coalton
+   (with-database ":memory:" None
+     (fn (db)
+       (execute-string db "create table if not exists myrecord (x, y, z)")
+       (with-statement-cache db 4
+         (fn (cache)
+           (coalton-library/experimental:dotimes (i 10000)
+             (with-cached-statement cache "insert into myrecord values (?, ?, ?)"
+               (fn (stmt)
+                 (bind-i64 stmt 1 (into i))
+                 (bind-i64 stmt 2 (into i))
+                 (bind-i64 stmt 3 (into i))
+                 (step-statement stmt))))))
+       (query-one-column db "select count(*) from myrecord" mempty))))
+#+end_src
+
+#+begin_src lisp
+: #.(INT 10000)
 #+end_src
