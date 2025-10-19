@@ -337,7 +337,7 @@
 > A synchronous FIFO replacement cache for SQlite statements.
 > 
 > Finalizing statements that are not already in the cache causes
-> them to be enqueued into the cache, deferring ~real~ finalization
+> them to be enqueued into the cache, deferring real finalization
 > until more space is needed.
 
 ## Values
