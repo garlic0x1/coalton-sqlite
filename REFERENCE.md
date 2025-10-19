@@ -328,3 +328,28 @@
 > 
 > Returns a list of rows represented as lists of \`DynamicValue' objects.
 
+# coalton-sqlite/cache
+
+## Types
+
+### STATEMENTCACHE :: *\**
+
+> A synchronous FIFO replacement cache for SQlite statements.
+> 
+> Finalizing statements that are not already in the cache causes
+> them to be enqueued into the cache, deferring real finalization
+> until more space is needed.
+
+## Values
+
+### WITH-CACHED-STATEMENT :: *∀ A. (STATEMENTCACHE → STRING → (STATEMENT → A) → A)*
+
+> Get a \`Statement' from \`cache' that will be put back in the cache as
+> the stack unwinds, possibly finalizing some other \`Statement'.
+
+### WITH-STATEMENT-CACHE :: *∀ A. (DATABASE → UFIX → (STATEMENTCACHE → A) → A)*
+
+> Create a \`StatementCache' using \`db' holding up to \`size' statements.
+> 
+> Usage of a \`StatementCache' shall be constrained to a single thread.
+

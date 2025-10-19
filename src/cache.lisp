@@ -16,10 +16,24 @@
 
 (coalton-toplevel
   (define-struct StatementCache
-    (db sqlite:Database)
-    (size UFix)
-    (fifo (queue:Queue String))
-    (cache (table:HashTable String sqlite:Statement)))
+    "A synchronous FIFO replacement cache for SQlite statements.
+
+Finalizing statements that are not already in the cache causes
+them to be enqueued into the cache, deferring real finalization
+until more space is needed."
+    (db
+     "The database associated with the cache."
+     sqlite:Database)
+    (size
+     "Maximum amount of statements to store."
+     UFix)
+    (fifo
+     "FIFO queue of keys, when the cache is full one is dequeued and
+finalized to make room."
+     (queue:Queue String))
+    (cache
+     "`HashTable' mapping SQL strings to `Statement' objects."
+     (table:HashTable String sqlite:Statement)))
 
   (declare make-statement-cache (sqlite:Database -> UFix -> StatementCache))
   (define (make-statement-cache db size)
@@ -32,6 +46,9 @@
 
   (declare with-statement-cache (sqlite:Database -> UFix -> (StatementCache -> :t) -> :t))
   (define (with-statement-cache db size func)
+    "Create a `StatementCache' using `db' holding up to `size' statements.
+
+Usage of a `StatementCache' shall be constrained to a single thread."
     (let cache = (make-statement-cache db size))
     (lisp :t (func cache)
       (cl:unwind-protect (call-coalton-function func cache)
@@ -42,17 +59,24 @@
   (define (maybe-dequeue-cache cache)
     (let (StatementCache _ size fifo cache) = cache)
     (when (== size (queue:length fifo))
-      (let sql = (queue:pop-unsafe! fifo))
-      (sqlite:finalize-statement (unwrap (table:get cache sql)))
-      (table:remove! cache sql)))
+      (match (queue:pop! fifo)
+        ((Some sql)
+         (sqlite:finalize-statement (unwrap (table:get cache sql)))
+         (table:remove! cache sql))
+        ((None)
+         Unit))))
 
   (inline)
   (declare enqueue-cache (StatementCache -> String -> sqlite:Statement -> Unit))
   (define (enqueue-cache cache sql stmt)
-    (let (StatementCache _ _ fifo cache) = cache)
-    (queue:push! sql fifo)
-    (table:set! cache sql stmt)
-    Unit)
+    (let (StatementCache _ size fifo cache) = cache)
+    (cond
+      ((== size (queue:length fifo))
+       (sqlite:finalize-statement stmt))
+      (True 
+       (queue:push! sql fifo)
+       (table:set! cache sql stmt)
+       Unit)))
 
   (inline)
   (declare prepare-statement (StatementCache -> String -> sqlite:Statement))
@@ -62,7 +86,6 @@
        (sqlite:reset-statement stmt)
        stmt)
       ((None)
-       (print "Making new object")
        (sqlite:prepare-statement (.db cache) sql))))
 
   (inline)
@@ -75,6 +98,8 @@
 
   (declare with-cached-statement (StatementCache -> String -> (sqlite:Statement -> :t) -> :t))
   (define (with-cached-statement cache sql func)
+    "Get a `Statement' from `cache' that will be put back in the cache as
+the stack unwinds, possibly finalizing some other `Statement'."
     (let stmt = (prepare-statement cache sql))
     (lisp :t (cache sql stmt func)
       (cl:unwind-protect (call-coalton-function func stmt)
