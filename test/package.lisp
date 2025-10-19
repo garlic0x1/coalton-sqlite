@@ -5,7 +5,6 @@
    #:coalton-testing
    #:coalton-sqlite)
   (:local-nicknames
-   ;; (#:cache #:coalton-sqlite/cache)
    (#:ffi #:coalton-sqlite/ffi))
   (:local-nicknames
    (#:result #:coalton-library/result))
