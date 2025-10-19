@@ -4,6 +4,7 @@
    #:coalton-prelude)
   (:local-nicknames
    (#:vec #:coalton-library/vector)
+   (#:lisparray #:coalton-library/lisparray)
    (#:cell #:coalton-library/cell)
    (#:ffi #:coalton-sqlite/ffi)
    (#:const #:coalton-sqlite/constants)
@@ -117,7 +118,25 @@
 
     (inline)
     (define (column-value stmt index)
-      (cell:new (column-value stmt index)))))
+            (cell:new (column-value stmt index))))
+
+  (define-instance (SqliteValue (lisparray:LispArray F64))
+    (define (bind-value stmt index value)
+      (let bytes = (* 8 (lisparray:length value)))
+      (lisp Unit (stmt index value bytes)
+        (cffi:with-pointer-to-vector-data (ptr value)
+          (sqlite::maybe-throw-sqlite
+           (ffi:sqlite3-bind-blob stmt index ptr bytes (ffi:destructor-transient)))))
+      )
+    (define (column-value stmt index)
+      (lisp (lisparray:LispArray F64) (stmt index)
+        (cffi:foreign-array-to-lisp
+         (ffi:sqlite3-column-blob stmt index)
+         (cl:list :array :double (cl:/ (ffi:sqlite3-column-bytes stmt index) 8))
+         :element-type 'cl:double-float)
+        ))
+    )
+  )
 
 (cl:defmacro bind-values (stmt cl:&rest values)
   (cl:let ((stmt-var (cl:gensym "STMT-")))
