@@ -4,8 +4,8 @@
    #:coalton-prelude)
   (:local-nicknames
    (#:const #:coalton-sqlite/constants)
-   (#:vec #:coalton-library/vector)
-   (#:ffi #:coalton-sqlite/ffi))
+   (#:ffi #:coalton-sqlite/ffi)
+   (#:array #:coalton-library/lisparray))
   (:export
    #:Database
    #:Statement
@@ -297,14 +297,14 @@ the behavior of `column-type' following a type conversion."
       (ffi:sqlite3-column-double stmt index)))
 
   (inline)
-  (declare column-blob (Statement -> UFix -> (vec:Vector U8)))
+  (declare column-blob (Statement -> UFix -> (array:LispArray U8)))
   (define (column-blob stmt index)
     "Read a blob from column."
-    (lisp (vec:Vector U8) (stmt index)
+    (lisp (array:LispArray U8) (stmt index)
       (cffi:foreign-array-to-lisp
        (ffi:sqlite3-column-blob stmt index)
        (cl:list :array :uint8 (ffi:sqlite3-column-bytes stmt index))
-       :adjustable cl:t)))
+       :element-type '(cl:unsigned-byte 8))))
 
   (inline)
   (declare column-name (Statement -> UFix -> String))
@@ -380,18 +380,13 @@ then NULL is returned."
       (maybe-throw-sqlite (ffi:sqlite3-bind-text stmt index x -1 (ffi:destructor-transient)))))
 
   (inline)
-  (declare bind-blob (Statement -> UFix -> (vec:Vector U8) -> Unit))
+  (declare bind-blob (Statement -> UFix -> (array:LispArray U8) -> Unit))
   (define (bind-blob stmt index x)
     "Bind a blob to statement."
-    (let len = (vec:length x))
+    (let len = (array:length x))
     (lisp Unit (stmt index x len)
-      ;; TODO, switch to this once we can use LispArray
-      ;; (cffi:with-pointer-to-vector-data (ptr x)
-      ;;   (maybe-throw-sqlite (ffi:sqlite3-bind-blob stmt index ptr len (ffi:destructor-transient))))
-      (cffi:with-foreign-object (ptr :unsigned-char len)
-        (cl:dotimes (i len)
-          (cl:setf (cffi:mem-aref ptr :unsigned-char i) (cl:aref x i)))
-        (maybe-throw-sqlite 
+      (cffi:with-pointer-to-vector-data (ptr x)
+        (maybe-throw-sqlite
          (ffi:sqlite3-bind-blob stmt index ptr len (ffi:destructor-transient))))))
 
   (inline)
