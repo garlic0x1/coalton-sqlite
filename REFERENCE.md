@@ -199,7 +199,7 @@
 > implements the SELECT statement. The second parameter is the column
 > number. The leftmost column is number 0.
 
-### COLUMN-BLOB :: *(STATEMENT → UFIX → (VECTOR U8))*
+### COLUMN-BLOB :: *(STATEMENT → UFIX → (LISPARRAY U8))*
 
 > Read a blob from column.
 
@@ -219,7 +219,7 @@
 
 > Bind NULL to statement.
 
-### BIND-BLOB :: *(STATEMENT → UFIX → (VECTOR U8) → UNIT)*
+### BIND-BLOB :: *(STATEMENT → UFIX → (LISPARRAY U8) → UNIT)*
 
 > Bind a blob to statement.
 
@@ -278,7 +278,7 @@
 
 > NIL
 
-### BLOB :: *((VECTOR U8) → DYNAMICVALUE)*
+### BLOB :: *((LISPARRAY U8) → DYNAMICVALUE)*
 
 > NIL
 
