@@ -7,6 +7,7 @@
   (:local-nicknames
    (#:ffi #:coalton-sqlite/ffi))
   (:local-nicknames
+   (#:lisparray #:coalton-library/lisparray)
    (#:result #:coalton-library/result))
   (:export
    #:run-tests))

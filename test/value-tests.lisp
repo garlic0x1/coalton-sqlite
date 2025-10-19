@@ -34,3 +34,23 @@
                   (Tuple 
                    (column-value stmt 0)
                    (column-value stmt 1)))))))))
+
+(define-test test-float-array ()
+  (let arr =
+    (the (lisparray:LispArray F64) 
+         (lisparray:make 10 (lisp F64 () (cl:coerce 3 'cl:double-float)))))
+  (is ;;(== arr)
+      (with-database ":memory:" None
+        (fn (db)
+          (with-statement db "create table blobber (x)" step-statement)
+          (with-statement db "insert into blobber values (?)"
+            (fn (stmt)
+              (bind-value stmt 1 arr)
+              (step-statement stmt)))
+          (with-statement db "select * from blobber"
+            (fn (stmt)
+              (step-statement stmt)
+              (traceobject "blob" (the (lisparray:LispArray F64) 
+                                      (column-value stmt 0)))))
+          True))
+      ))
