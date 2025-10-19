@@ -5,7 +5,6 @@
    #:coalton-testing
    #:coalton-sqlite)
   (:local-nicknames
-   (#:cache #:coalton-sqlite/cache)
    (#:ffi #:coalton-sqlite/ffi))
   (:local-nicknames
    (#:result #:coalton-library/result))
@@ -43,10 +42,10 @@
       (fn (db)
         ;; (execute-string db "pragma journal_mode = MEMORY;")
         (execute-string db "create table if not exists myrecord (x, y, z)")
-        (cache:with-statement-cache db 2
+        (with-statement-cache db 2
           (fn (cache)
             (coalton-library/experimental:dotimes (i n)
-              (cache:with-cached-statement cache "insert into myrecord values (?, ?, ?)"
+              (with-cached-statement cache "insert into myrecord values (?, ?, ?)"
                 (fn (stmt)
                   (bind-i64 stmt 1 (into i))
                   (bind-i64 stmt 2 (into i))
@@ -95,9 +94,9 @@
       (fn (db)
         ;; (execute-string db "pragma journal_mode = MEMORY;")
         (execute-string db "create table if not exists myrecord (x, y, z)")
-        (cache:with-statement-cache db 2
+        (with-statement-cache db 2
           (fn (cache)
             (coalton-library/experimental:dotimes (_ n)
-              (cache:with-cached-statement cache "insert into myrecord values (?, ?, ?) on conflict do nothing"
+              (with-cached-statement cache "insert into myrecord values (?, ?, ?) on conflict do nothing"
                 (fn (_) Unit))
               Unit)))))))
