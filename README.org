@@ -49,6 +49,11 @@ lists of ~DynamicValue~ types.
 Everything above the FFI level is reexported into the ~coalton-sqlite~
 package.
 
+* Encryption
+
+Bindings for the [[https://sqlite.org/com/see.html][SQLite Encryption Extension]] are included in the
+~coalton-sqlite/see~ system.
+
 * Examples
 
 ** Basic API

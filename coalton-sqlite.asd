@@ -12,6 +12,13 @@
                              (:file "package"))))
   :in-order-to ((test-op (test-op "coalton-sqlite/test"))))
 
+(asdf:defsystem "coalton-sqlite/see"
+  :author "garlic0x1"
+  :license "MIT"
+  :depends-on ("coalton" "cffi" "coalton-sqlite")
+  :components ((:module "src"
+                :components ((:file "see")))))
+
 (asdf:defsystem "coalton-sqlite/test"
   :depends-on ("coalton-sqlite" "coalton/testing")
   :components ((:module "test"

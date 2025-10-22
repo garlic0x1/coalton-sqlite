@@ -36,9 +36,10 @@
    #:destructor-transient
    #:destructor-static
    #:sqlite3-last-insert-rowid
-   #:sqlite3-key-v3
-   #:sqlite3-activate-see
    #:sqlite3-db-filename
+   #:sqlite3-key-v3
+   #:sqlite3-rekey-v3
+   #:sqlite3-activate-see
    ))
 
 (in-package #:coalton-sqlite/ffi)
@@ -70,6 +71,10 @@
 
 (defcfun sqlite3-close error-code
   (db p-sqlite3))
+
+(defcfun sqlite3-db-filename :string
+  (db p-sqlite3)
+  (z-db-name :string))
 
 (defcfun sqlite3-errmsg :string
   (db p-sqlite3))
@@ -176,25 +181,11 @@
   (bytes-count :int)
   (destructor :pointer))
 
+(defcfun sqlite3-last-insert-rowid :int64
+  (db p-sqlite3))
+
 (defconstant destructor-transient-address (mod -1 (expt 2 (* 8 (cffi:foreign-type-size :pointer)))))
 
 (defun destructor-transient () (cffi:make-pointer destructor-transient-address))
 
 (defun destructor-static () (cffi:make-pointer 0))
-
-(defcfun sqlite3-last-insert-rowid :int64
-  (db p-sqlite3))
-
-(defcfun sqlite3-key-v3 error-code
-  (db p-sqlite3)
-  (z-db-name :string)
-  (key :string)
-  (key-size :int)
-  (codec :string))
-
-(defcfun sqlite3-activate-sse :int
-  (activation-code :string))
-
-(defcfun sqlite3-db-filename :string
-  (db p-sqlite3)
-  (z-db-name :string))

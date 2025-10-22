@@ -55,7 +55,7 @@
 (define-test test-i16-array ()
   (let arr =
     (the (lisparray:LispArray I16)
-         (lisparray:make 100 (the I16 -3))))
+         (lisparray:make 100 (the I16 -32768))))
   (is (== arr
           (with-database ":memory:" None
             (fn (db)

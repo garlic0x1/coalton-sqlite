@@ -129,13 +129,6 @@ transaction is automatically rolled back."
     (lisp Unit (db)
       (maybe-throw-sqlite (ffi:sqlite3-close db))))
 
-  (declare key-database (Database -> String -> Unit))
-  (define (key-database db key)
-    "TODO"
-    (lisp Unit (db key) 
-      (maybe-throw-sqlite 
-       (ffi:sqlite3-key-v3 db (cffi:null-pointer) key (cl:length key) (cffi:null-pointer)))))
-
   (declare database-filename (Database -> String))
   (define (database-filename db)
     "The `database-filename' function returns a string of the filename
