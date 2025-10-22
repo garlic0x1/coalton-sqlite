@@ -37,7 +37,13 @@
      (sqlite:Statement -> UFix -> :t))
     (bind-value
      "Bind a value to statement."
-     (sqlite:Statement -> UFix -> :t -> Unit))))
+     (sqlite:Statement -> UFix -> :t -> Unit)))
+
+  (define-class (CanWrapOptional :t)
+    "Used internally to prevent nested wrapping types.")
+
+  (define-class (CanWrapCell :t)
+    "Used internally to prevent nested wrapping types."))
 
 ;;;
 ;;; Macros
@@ -45,30 +51,36 @@
 
 (cl:eval-when (:compile-toplevel :load-toplevel :execute)
   (cl:defmacro define-sqlite-value (type binder reader)
-    `(define-instance (SqliteValue ,type)
-       (inline)
-       (define bind-value ,binder)
+    `(progn
+       (define-instance (CanWrapOptional ,type))
+       (define-instance (CanWrapCell ,type))
+       (define-instance (SqliteValue ,type)
+         (inline)
+         (define bind-value ,binder)
 
-       (inline)
-       (define column-value ,reader)))
+         (inline)
+         (define column-value ,reader))))
 
   (cl:defmacro define-sqlite-blob (type csize ctype cltype)
-    `(define-instance (SqliteValue ,type)
-       (inline)
-       (define (bind-value stmt index value)
-         (let bytes = (* ,csize (array:length value)))
-         (lisp Unit (stmt index value bytes)
-           (cffi:with-pointer-to-vector-data (ptr value)
-             (sqlite::maybe-throw-sqlite
-              (ffi:sqlite3-bind-blob stmt index ptr bytes (ffi:destructor-transient))))))
+    `(progn
+       (define-instance (CanWrapOptional ,type))
+       (define-instance (CanWrapCell ,type))
+       (define-instance (SqliteValue ,type)
+         (inline)
+         (define (bind-value stmt index value)
+           (let bytes = (* ,csize (array:length value)))
+           (lisp Unit (stmt index value bytes)
+             (cffi:with-pointer-to-vector-data (ptr value)
+               (sqlite::maybe-throw-sqlite
+                (ffi:sqlite3-bind-blob stmt index ptr bytes (ffi:destructor-transient))))))
 
-       (inline)
-       (define (column-value stmt index)
-         (lisp ,type (stmt index)
-           (cffi:foreign-array-to-lisp
-            (ffi:sqlite3-column-blob stmt index)
-            (cl:list :array ,ctype (cl:/ (ffi:sqlite3-column-bytes stmt index) ,csize))
-            :element-type ',cltype)))))
+         (inline)
+         (define (column-value stmt index)
+           (lisp ,type (stmt index)
+             (cffi:foreign-array-to-lisp
+              (ffi:sqlite3-column-blob stmt index)
+              (cl:list :array ,ctype (cl:/ (ffi:sqlite3-column-bytes stmt index) ,csize))
+              :element-type ',cltype))))))
 
   (cl:defmacro bind-values (stmt cl:&rest values)
     (cl:let ((stmt-var (cl:gensym "STMT-")))
@@ -159,16 +171,11 @@ floating point number."
 ;; Special Container Types: Cell, Optional
 
 (coalton-toplevel
-  (define-instance (SqliteValue :t => SqliteValue (cell:Cell :t))
-    (inline)
-    (define (bind-value stmt index value)
-      (bind-value stmt index (cell:read value)))
+  ;; TODO: possible Coalton bug?
+  #+#:TODO
+  (define-instance ((CanWrapOptional :t) (SqliteValue :t) => CanWrapCell (Optional :t)))
 
-    (inline)
-    (define (column-value stmt index)
-      (cell:new (column-value stmt index))))
-
-  (define-instance (SqliteValue :t => SqliteValue (Optional :t))
+  (define-instance ((CanWrapOptional :t) (SqliteValue :t) => SqliteValue (Optional :t))
     (inline)
     (define (bind-value stmt index value)
       (match value
@@ -179,4 +186,13 @@ floating point number."
     (define (column-value stmt index)
       (match (sqlite:column-type stmt index)
         ((const:SqliteNull) None)
-        (_ (Some (column-value stmt index)))))))
+        (_ (Some (column-value stmt index))))))
+
+  (define-instance ((CanWrapCell :t) (SqliteValue :t) => SqliteValue (cell:Cell :t))
+    (inline)
+    (define (bind-value stmt index value)
+      (bind-value stmt index (cell:read value)))
+
+    (inline)
+    (define (column-value stmt index)
+      (cell:new (column-value stmt index)))))
