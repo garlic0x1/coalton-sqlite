@@ -68,3 +68,73 @@
                 (fn (stmt)
                   (step-statement stmt)
                   (column-value stmt 0))))))))
+
+(define-test test-optional-i16-array ()
+  (let arr =
+    (the (lisparray:LispArray I16)
+         (lisparray:make 100 (the I16 -32768))))
+  (is (== (Some arr)
+          (with-database ":memory:" None
+            (fn (db)
+              (with-statement db "create table blobber (x)" step-statement)
+              (with-statement db "insert into blobber values (?)"
+                (fn (stmt)
+                  (bind-value stmt 1 arr)
+                  (step-statement stmt)))
+              (with-statement db "select * from blobber"
+                (fn (stmt)
+                  (step-statement stmt)
+                  (column-value stmt 0))))))))
+
+(define-test test-optional-optional-array ()
+  (let arr =
+    (the (lisparray:LispArray I16)
+         (lisparray:make 100 (the I16 -32768))))
+  (is (== (Some (Some arr))
+          (with-database ":memory:" None
+            (fn (db)
+              (with-statement db "create table blobber (x)" step-statement)
+              (with-statement db "insert into blobber values (?)"
+                (fn (stmt)
+                  #+#:TODO-BUG
+                  (bind-value stmt 1 (Some (Some arr)))
+                  (bind-value stmt 1 arr)
+                  (step-statement stmt)))
+              (with-statement db "select * from blobber"
+                (fn (stmt)
+                  (step-statement stmt)
+                  (column-value stmt 0))))))))
+
+(define-test test-cell-array ()
+  (let arr =
+    (coalton-library/cell:new
+     (the (lisparray:LispArray I16)
+          (lisparray:make 100 (the I16 -32768)))))
+  (is (== arr
+          (with-database ":memory:" None
+            (fn (db)
+              (with-statement db "create table blobber (x)" step-statement)
+              (with-statement db "insert into blobber values (?)"
+                (fn (stmt)
+                  (bind-value stmt 1 arr)
+                  (step-statement stmt)))
+              (with-statement db "select * from blobber"
+                (fn (stmt)
+                  (step-statement stmt)
+                  (column-value stmt 0))))))))
+
+#+#:TODO-BUG
+(define-test test-optional-optional-i64 ()
+  (let value = (Some (Some (the I64 1000))))
+  (is (== value
+          (with-database ":memory:" None
+            (fn (db)
+              (with-statement db "create table blobber (x)" step-statement)
+              (with-statement db "insert into blobber values (?)"
+                (fn (stmt)
+                  (bind-value stmt 1 value)
+                  (step-statement stmt)))
+              (with-statement db "select * from blobber"
+                (fn (stmt)
+                  (step-statement stmt)
+                  (column-value stmt 0))))))))
