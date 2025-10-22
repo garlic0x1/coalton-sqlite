@@ -94,7 +94,7 @@ Resources associated with the database connection handle should be
 released by passing it to `close-database' when it is no longer
 required."
     (match flags
-      ((None) 
+      ((None)
        (lisp Database (path)
          (cffi:with-foreign-object (db 'ffi:p-sqlite3)
            (maybe-throw-sqlite (ffi:sqlite3-open path db))
@@ -210,7 +210,7 @@ parameters to NULL."
   (declare statement-database (Statement -> Database))
   (define (statement-database stmt)
     "Find The Database Handle Of A Prepared Statement."
-    (lisp Database (stmt) 
+    (lisp Database (stmt)
       (ffi:sqlite3-db-handle stmt)))
 
   (declare with-statement (Database -> String -> (Statement -> :t) -> :t))

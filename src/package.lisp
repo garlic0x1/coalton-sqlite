@@ -7,4 +7,5 @@
    #:coalton-sqlite/sqlite
    #:coalton-sqlite/value
    #:coalton-sqlite/query
-   #:coalton-sqlite/cache))
+   #:coalton-sqlite/cache
+   ))

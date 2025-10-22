@@ -13,11 +13,12 @@
    #:query-one
    #:query-one-column
    #:do-rows
-   #:with-transaction))
+   #:with-transaction
+   ))
 
 (in-package #:coalton-sqlite/query)
 
-(coalton-toplevel 
+(coalton-toplevel
   (declare bind-values (sqlite:Statement -> (List value:DynamicValue) -> Unit))
   (define (bind-values stmt values)
     (rec f ((values values) (i 1))
@@ -41,7 +42,7 @@
       (fn (stmt)
         (bind-values stmt params)
         (sqlite:step-statement stmt)
-        Unit))) 
+        Unit)))
 
   (declare execute-string (sqlite:Database -> String -> Unit))
   (define (execute-string db sql)
@@ -109,11 +110,10 @@ If a condition is signaled, the transaction is rolled back, otherwise,
 it is committed after evaluation."
     (execute-string db "BEGIN TRANSACTION")
     (lisp :t (db func)
-      (cl:let ((ok? cl:nil)) 
+      (cl:let ((ok? cl:nil))
         (cl:unwind-protect
              (cl:prog1 (call-coalton-function func Unit)
                (cl:setf ok? cl:t))
           (cl:if ok?
                  (call-coalton-function execute-string db "COMMIT TRANSACTION")
                  (call-coalton-function execute-string db "ROLLBACK TRANSACTION")))))))
-

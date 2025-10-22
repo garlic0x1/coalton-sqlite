@@ -61,7 +61,7 @@
     (dump (:a -> :b))
     (load (:b -> :a))))
 
-(cl:eval-when (:compile-toplevel :load-toplevel :execute) 
+(cl:eval-when (:compile-toplevel :load-toplevel :execute)
   (cl:defmacro define-enum (name type cl:&body ctors)
     `(progn
        (derive Eq)

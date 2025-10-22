@@ -115,7 +115,7 @@
               (cl:list :array ,ctype (cl:/ (ffi:sqlite3-column-bytes stmt index) ,csize))
               :element-type ',cltype))))
 
-      (define-instance (SqliteValue (Optional ,type))
+       (define-instance (SqliteValue (Optional ,type))
          (inline)
          (define (bind-value stmt index value)
            (match value

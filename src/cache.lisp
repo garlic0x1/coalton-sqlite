@@ -10,7 +10,8 @@
   (:export
    #:StatementCache
    #:with-statement-cache
-   #:with-cached-statement))
+   #:with-cached-statement
+   ))
 
 (in-package #:coalton-sqlite/cache)
 
@@ -73,7 +74,7 @@ Usage of a `StatementCache' shall be constrained to a single thread."
     (cond
       ((== size (queue:length fifo))
        (sqlite:finalize-statement stmt))
-      (True 
+      (True
        (queue:push! sql fifo)
        (table:set! cache sql stmt)
        Unit)))

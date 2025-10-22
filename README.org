@@ -1,6 +1,6 @@
 #+title: README
 
-SQLite Bindings for Coalton
+[[https://sqlite.org/][SQLite]] Bindings for Coalton
 
 See [[./REFERENCE.md][the reference]] for complete documentation.
 

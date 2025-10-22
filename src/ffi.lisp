@@ -37,9 +37,6 @@
    #:destructor-static
    #:sqlite3-last-insert-rowid
    #:sqlite3-db-filename
-   #:sqlite3-key-v3
-   #:sqlite3-rekey-v3
-   #:sqlite3-activate-see
    ))
 
 (in-package #:coalton-sqlite/ffi)

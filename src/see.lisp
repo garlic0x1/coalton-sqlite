@@ -8,7 +8,8 @@
   (:export
    #:key-database
    #:rekey-database
-   #:activate-encryption-extension))
+   #:activate-encryption-extension
+   ))
 
 (in-package #:coalton-sqlite/see)
 
@@ -35,8 +36,8 @@
     "Use the `open-database' function to open an encrypted database
 or any database that you want to rekey. Immediately after opening,
 specify the key using `key-database'."
-    (lisp Unit (db key) 
-      (sqlite::maybe-throw-sqlite 
+    (lisp Unit (db key)
+      (sqlite::maybe-throw-sqlite
        (sqlite3-key-v3 db (cffi:null-pointer) key (cl:length key) (cffi:null-pointer)))))
 
   (declare rekey-database (sqlite:Database -> (Optional String) -> Unit))
@@ -53,13 +54,13 @@ database."
     (match key
       ;; Case #1: Decrypt Database
       ((None)
-       (lisp Unit (db) 
-         (sqlite::maybe-throw-sqlite 
+       (lisp Unit (db)
+         (sqlite::maybe-throw-sqlite
           (sqlite3-rekey-v3 db (cffi:null-pointer) (cffi:null-pointer) 0 (cffi:null-pointer)))))
       ;; Case #2: Rekey Database
-      ((Some key) 
-       (lisp Unit (db key) 
-         (sqlite::maybe-throw-sqlite 
+      ((Some key)
+       (lisp Unit (db key)
+         (sqlite::maybe-throw-sqlite
           (sqlite3-rekey-v3 db (cffi:null-pointer) key (cl:length key) (cffi:null-pointer)))))))
 
   (declare activate-encryption-extension (String -> Unit))
@@ -75,6 +76,6 @@ customers from extracting the SQLite library and using it separately
 from your application. Without knowledge of the activation key, which
 only you should know, your users will be unable to access the
 encryption features."
-    (lisp Unit (passphrase) 
+    (lisp Unit (passphrase)
       (sqlite3-activate-see passphrase)
       Unit)))
