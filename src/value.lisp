@@ -25,15 +25,92 @@
 
 (in-package #:coalton-sqlite/value)
 
+;;;
+;;; Value Class
+;;;
+
+(coalton-toplevel
+  (define-class (SqliteValue :t)
+    "Objects that can be bound and read from statements."
+    (column-value
+     "Read a value from column."
+     (sqlite:Statement -> UFix -> :t))
+    (bind-value
+     "Bind a value to statement."
+     (sqlite:Statement -> UFix -> :t -> Unit)))
+
+  (define-class (CanWrapOptional :t)
+    "Used internally to prevent nested wrapping types.")
+
+  (define-class (CanWrapCell :t)
+    "Used internally to prevent nested wrapping types."))
+
+;;;
+;;; Macros
+;;;
+
+(cl:eval-when (:compile-toplevel :load-toplevel :execute)
+  (cl:defmacro define-sqlite-value (type binder reader)
+    `(progn
+       (define-instance (CanWrapOptional ,type))
+       (define-instance (CanWrapCell ,type))
+       (define-instance (SqliteValue ,type)
+         (inline)
+         (define bind-value ,binder)
+
+         (inline)
+         (define column-value ,reader))))
+
+  (cl:defmacro define-sqlite-blob (type csize ctype cltype)
+    `(progn
+       (define-instance (CanWrapOptional ,type))
+       (define-instance (CanWrapCell ,type))
+       (define-instance (SqliteValue ,type)
+         (inline)
+         (define (bind-value stmt index value)
+           (let bytes = (* ,csize (array:length value)))
+           (lisp Unit (stmt index value bytes)
+             (cffi:with-pointer-to-vector-data (ptr value)
+               (sqlite::maybe-throw-sqlite
+                (ffi:sqlite3-bind-blob stmt index ptr bytes (ffi:destructor-transient))))))
+
+         (inline)
+         (define (column-value stmt index)
+           (lisp ,type (stmt index)
+             (cffi:foreign-array-to-lisp
+              (ffi:sqlite3-column-blob stmt index)
+              (cl:list :array ,ctype (cl:/ (ffi:sqlite3-column-bytes stmt index) ,csize))
+              :element-type ',cltype))))))
+
+  (cl:defmacro bind-values (stmt cl:&rest values)
+    (cl:let ((stmt-var (cl:gensym "STMT-")))
+      `(let ((,stmt-var ,stmt))
+         ,@(cl:loop
+              :for i :upfrom 1
+              :for value :in values
+              :collect `(bind-value ,stmt-var ,i ,value))))))
+
+;;;
+;;; Dynamic Values
+;;;
+
 (coalton-toplevel
   (derive Eq Hash)
   (define-type DynamicValue
     "A union type that represents all possible SQLite values."
     Null
+    "The value is a NULL value."
     (Int   I64)
+    "The value is a signed integer, stored in 0, 1, 2, 3, 4, 6, or 8
+bytes depending on the magnitude of the value."
     (Float F64)
+    "The value is a floating point value, stored as an 8-byte IEEE
+floating point number."
     (Text  String)
-    (Blob  (array:LispArray U8)))
+    "The value is a text string, stored using the database encoding
+(UTF-8, UTF-16BE or UTF-16LE)."
+    (Blob  (array:LispArray U8))
+    "The value is a blob of data, stored exactly as it was input.")
 
   (define-instance (Default DynamicValue)
     (define (default) Null))
@@ -62,108 +139,59 @@
       ((Blob x)  (sqlite:bind-blob stmt index x))
       ((Null)    (sqlite:bind-null stmt index)))))
 
-(coalton-toplevel
-  (define-class (SqliteValue :t)
-    "Objects that can be bound and read from statements."
-    (column-value
-     "Read a value from column."
-     (sqlite:Statement -> UFix -> :t))
-    (bind-value
-     "Bind a value to statement."
-     (sqlite:Statement -> UFix -> :t -> Unit))))
-
-(cl:eval-when (:compile-toplevel :load-toplevel :execute)
-  (cl:defmacro define-sqlite-value (type binder reader sqlite-type)
-    `(progn
-       (define-instance (SqliteValue ,type)
-         (inline)
-         (define bind-value ,binder)
-
-         (inline)
-         (define column-value ,reader))
-
-       (define-instance (SqliteValue (Optional ,type))
-         (inline)
-         (define (bind-value stmt index value)
-           (match value
-             ((Some value) (,binder stmt index value))
-             ((None) (sqlite:bind-null stmt index))))
-
-         (inline)
-         (define (column-value stmt index)
-           (match (sqlite:column-type stmt index)
-             ((,sqlite-type) (Some (,reader stmt index)))
-             ((const:SqliteNull) None)
-             (_ (sqlite::throw-sqlite 20) None))))))
-
-  (cl:defmacro define-sqlite-blob (type csize ctype cltype)
-    `(progn
-       (define-instance (SqliteValue ,type)
-         (inline)
-         (define (bind-value stmt index value)
-           (let bytes = (* ,csize (array:length value)))
-           (lisp Unit (stmt index value bytes)
-             (cffi:with-pointer-to-vector-data (ptr value)
-               (sqlite::maybe-throw-sqlite
-                (ffi:sqlite3-bind-blob stmt index ptr bytes (ffi:destructor-transient))))))
-
-         (inline)
-         (define (column-value stmt index)
-           (lisp ,type (stmt index)
-             (cffi:foreign-array-to-lisp
-              (ffi:sqlite3-column-blob stmt index)
-              (cl:list :array ,ctype (cl:/ (ffi:sqlite3-column-bytes stmt index) ,csize))
-              :element-type ',cltype))))
-
-       (define-instance (SqliteValue (Optional ,type))
-         (inline)
-         (define (bind-value stmt index value)
-           (match value
-             ((Some value) (bind-value stmt index value))
-             ((None) (sqlite:bind-null stmt index))))
-
-         (inline)
-         (define (column-value stmt index)
-           (match (sqlite:column-type stmt index)
-             ((const:SqliteBlob) (Some (column-value stmt index)))
-             ((const:SqliteNull) None)
-             (_ (sqlite::throw-sqlite 20) None)))))))
+;;;
+;;; Value Instances
+;;;
 
 (coalton-toplevel
-  (define-sqlite-value I64 sqlite:bind-i64 sqlite:column-i64 const:SqliteInt)
-  (define-sqlite-value F64 sqlite:bind-f64 sqlite:column-f64 const:SqliteFloat)
-  (define-sqlite-value String sqlite:bind-text sqlite:column-text const:SqliteText)
-  (define-sqlite-value (array:LispArray U8) sqlite:bind-blob sqlite:column-blob const:SqliteBlob)
+  (define-sqlite-value I64 sqlite:bind-i64 sqlite:column-i64)
+  (define-sqlite-value F64 sqlite:bind-f64 sqlite:column-f64)
+  (define-sqlite-value String sqlite:bind-text sqlite:column-text)
+  (define-sqlite-value (array:LispArray U8) sqlite:bind-blob sqlite:column-blob)
 
   (define-sqlite-blob (array:LispArray U16) 16 :uint16 (cl:unsigned-byte 16))
   (define-sqlite-blob (array:LispArray U32) 32 :uint32 (cl:unsigned-byte 32))
   (define-sqlite-blob (array:LispArray U64) 64 :uint64 (cl:unsigned-byte 64))
-  (define-sqlite-blob (array:LispArray I8)  8  :int8  (cl:signed-byte 8))
-  (define-sqlite-blob (array:LispArray I16) 16 :int16 (cl:signed-byte 16))
-  (define-sqlite-blob (array:LispArray I32) 32 :int32 (cl:signed-byte 32))
-  (define-sqlite-blob (array:LispArray I64) 64 :int64 (cl:signed-byte 64))
-  (define-sqlite-blob (array:LispArray F32) 32 :float cl:float)
-  (define-sqlite-blob (array:LispArray F64) 64 :double cl:double-float)
+  (define-sqlite-blob (array:LispArray I8)  8  :int8   (cl:signed-byte 8))
+  (define-sqlite-blob (array:LispArray I16) 16 :int16  (cl:signed-byte 16))
+  (define-sqlite-blob (array:LispArray I32) 32 :int32  (cl:signed-byte 32))
+  (define-sqlite-blob (array:LispArray I64) 64 :int64  (cl:signed-byte 64))
+  (define-sqlite-blob (array:LispArray F32) 32 :float  cl:single-float)
+  (define-sqlite-blob (array:LispArray F64) 64 :double cl:double-float))
 
+;; Dynamic Types
+
+(coalton-toplevel
   (define-instance (SqliteValue DynamicValue)
     (inline)
     (define bind-value bind-dynamic-value)
     (inline)
-    (define column-value column-dynamic-value))
+    (define column-value column-dynamic-value)))
 
-  (define-instance (SqliteValue :t => SqliteValue (cell:Cell :t))
+;; Special Container Types: Cell, Optional
+
+(coalton-toplevel
+  (define-instance ((CanWrapOptional :t) (SqliteValue :t) => CanWrapCell (Optional :t)))
+
+  (define-instance ((CanWrapOptional :t) (SqliteValue :t) => SqliteValue (Optional :t))
     (inline)
+    (define (bind-value stmt index value)
+      (match value
+        ((None) (sqlite:bind-null stmt index))
+        ((Some value) (bind-value stmt index value))))
+
+    (inline)
+    (define (column-value stmt index)
+      (match (sqlite:column-type stmt index)
+        ((const:SqliteNull) None)
+        (_ (Some (column-value stmt index))))))
+
+  (define-instance ((CanWrapCell :t) (SqliteValue :t) => SqliteValue (cell:Cell :t))
+    ;; TODO: possible Coalton bug?
+    ;; (inline)
     (define (bind-value stmt index value)
       (bind-value stmt index (cell:read value)))
 
     (inline)
     (define (column-value stmt index)
       (cell:new (column-value stmt index)))))
-
-(cl:defmacro bind-values (stmt cl:&rest values)
-  (cl:let ((stmt-var (cl:gensym "STMT-")))
-    `(let ((,stmt-var ,stmt))
-       ,@(cl:loop
-            :for i :upfrom 1
-            :for value :in values
-            :collect `(bind-value ,stmt-var ,i ,value)))))
