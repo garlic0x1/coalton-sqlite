@@ -36,6 +36,7 @@
    #:bind-text
    #:bind-blob
    #:bind-null
+   #:last-insert-rowid
    ))
 
 (in-package #:coalton-sqlite/sqlite)
@@ -387,4 +388,16 @@ then NULL is returned."
   (define (bind-null stmt index)
     "Bind NULL to statement."
     (lisp Unit (stmt index)
-      (maybe-throw-sqlite (ffi:sqlite3-bind-null stmt index)))))
+      (maybe-throw-sqlite (ffi:sqlite3-bind-null stmt index))))
+
+  (inline)
+  (declare last-insert-rowid (Database -> I64))
+  (define (last-insert-rowid db)
+    "The `last-insert-rowid' function usually returns the rowid
+of the most recent successful INSERT into a rowid table or virtual
+table on database connection `db'. Inserts into WITHOUT ROWID
+tables are not recorded. If no successful INSERTs into rowid
+tables have ever occurred on the database connection `db', then
+`last-insert-rowid' returns zero."
+    (lisp I64 (db)
+      (ffi:sqlite3-last-insert-rowid db))))

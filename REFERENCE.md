@@ -64,6 +64,15 @@
 > byte-code program using one of these routines. Or, in other words,
 > these routines are constructors for the prepared statement object.
 
+### LAST-INSERT-ROWID :: *(DATABASE → I64)*
+
+> The \`last-insert-rowid' function usually returns the rowid
+> of the most recent successful INSERT into a rowid table or virtual
+> table on database connection \`db'. Inserts into WITHOUT ROWID
+> tables are not recorded. If no successful INSERTs into rowid
+> tables have ever occurred on the database connection \`db', then
+> \`last-insert-rowid' returns zero.
+
 ### DATABASE-FILENAME :: *(DATABASE → STRING)*
 
 > The \`database-filename' function returns a string of the filename
@@ -268,11 +277,13 @@
 
 ### FLOAT :: *(F64 → DYNAMICVALUE)*
 
-> NIL
+> The value is a floating point value, stored as an 8-byte IEEE
+> floating point number.
 
 ### TEXT :: *(STRING → DYNAMICVALUE)*
 
-> NIL
+> The value is a text string, stored using the database encoding
+> (UTF-8, UTF-16BE or UTF-16LE).
 
 ### NULL :: *DYNAMICVALUE*
 
@@ -280,11 +291,12 @@
 
 ### BLOB :: *((LISPARRAY U8) → DYNAMICVALUE)*
 
-> NIL
+> The value is a blob of data, stored exactly as it was input.
 
 ### INT :: *(I64 → DYNAMICVALUE)*
 
-> NIL
+> The value is a signed integer, stored in 0, 1, 2, 3, 4, 6, or 8
+> bytes depending on the magnitude of the value.
 
 # coalton-sqlite/query
 
