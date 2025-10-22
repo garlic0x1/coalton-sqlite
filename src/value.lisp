@@ -156,7 +156,7 @@ floating point number."
   (define-sqlite-blob (array:LispArray I16) 16 :int16  (cl:signed-byte 16))
   (define-sqlite-blob (array:LispArray I32) 32 :int32  (cl:signed-byte 32))
   (define-sqlite-blob (array:LispArray I64) 64 :int64  (cl:signed-byte 64))
-  (define-sqlite-blob (array:LispArray F32) 32 :float  cl:float)
+  (define-sqlite-blob (array:LispArray F32) 32 :float  cl:single-float)
   (define-sqlite-blob (array:LispArray F64) 64 :double cl:double-float))
 
 ;; Dynamic Types
@@ -171,8 +171,6 @@ floating point number."
 ;; Special Container Types: Cell, Optional
 
 (coalton-toplevel
-  ;; TODO: possible Coalton bug?
-  #+#:TODO
   (define-instance ((CanWrapOptional :t) (SqliteValue :t) => CanWrapCell (Optional :t)))
 
   (define-instance ((CanWrapOptional :t) (SqliteValue :t) => SqliteValue (Optional :t))
@@ -189,7 +187,8 @@ floating point number."
         (_ (Some (column-value stmt index))))))
 
   (define-instance ((CanWrapCell :t) (SqliteValue :t) => SqliteValue (cell:Cell :t))
-    (inline)
+    ;; TODO: possible Coalton bug?
+    ;; (inline)
     (define (bind-value stmt index value)
       (bind-value stmt index (cell:read value)))
 

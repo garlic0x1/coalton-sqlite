@@ -35,7 +35,7 @@
                    (column-value stmt 0)
                    (column-value stmt 1)))))))))
 
-(define-test test-f64-array ()
+(define-test test-value-f64-array ()
   (let arr =
     (the (lisparray:LispArray F64)
          (lisparray:make 10 (lisp F64 () (cl:coerce 3 'cl:double-float)))))
@@ -52,7 +52,24 @@
                   (step-statement stmt)
                   (column-value stmt 0))))))))
 
-(define-test test-i16-array ()
+(define-test test-value-f32-array ()
+  (let arr =
+    (the (lisparray:LispArray F32)
+         (lisparray:make 10 (lisp F32 () (cl:coerce -23.456 'cl:single-float)))))
+  (is (== arr
+          (with-database ":memory:" None
+            (fn (db)
+              (with-statement db "create table blobber (x)" step-statement)
+              (with-statement db "insert into blobber values (?)"
+                (fn (stmt)
+                  (bind-value stmt 1 arr)
+                  (step-statement stmt)))
+              (with-statement db "select * from blobber"
+                (fn (stmt)
+                  (step-statement stmt)
+                  (column-value stmt 0))))))))
+
+(define-test test-value-i16-array ()
   (let arr =
     (the (lisparray:LispArray I16)
          (lisparray:make 100 (the I16 -32768))))
@@ -69,7 +86,7 @@
                   (step-statement stmt)
                   (column-value stmt 0))))))))
 
-(define-test test-optional-i64 ()
+(define-test test-value-optional-i64 ()
   (let value = (the (Optional I64) (Some -32768)))
   (is (== value
           (with-database ":memory:" None
@@ -98,11 +115,11 @@
                   (step-statement stmt)
                   (column-value stmt 0))))))))
 
-(define-test test-cell-array ()
+(define-test test-value-cell-array ()
   (let arr =
     (coalton-library/cell:new
-     (the (lisparray:LispArray I16)
-          (lisparray:make 100 (the I16 -32768)))))
+     (the (lisparray:LispArray F32)
+          (lisparray:make 100 (the F32 -32768)))))
   (is (== arr
           (with-database ":memory:" None
             (fn (db)
@@ -116,12 +133,10 @@
                   (step-statement stmt)
                   (column-value stmt 0))))))))
 
-;; TODO: possible Coalton bug?
-#+#:TODO
-(define-test test-cell-optional-array ()
+(define-test test-value-cell-optional-array ()
   (let arr =
     (coalton-library/cell:new
-     (the (Optional (lisparray:LispArray I16))
+     (the (Optional (lisparray:LispArray F32))
           None)))
   (is (== arr
           (with-database ":memory:" None
@@ -129,6 +144,22 @@
               (with-statement db "create table blobber (x)" step-statement)
               (with-statement db "insert into blobber values (?)"
                 (fn (stmt)
+                  (bind-value stmt 1 arr)
+                  (step-statement stmt)))
+              (with-statement db "select * from blobber"
+                (fn (stmt)
+                  (step-statement stmt)
+                  (column-value stmt 0)))))))
+
+  (is (== (lisparray:make 10 (the F32 123.3))
+          (with-database ":memory:" None
+            (fn (db)
+              (with-statement db "create table blobber (x)" step-statement)
+              (with-statement db "insert into blobber values (?)"
+                (fn (stmt)
+                  (coalton-library/cell:write!
+                   arr
+                   (Some (lisparray:make 10 (the F32 123.3))))
                   (bind-value stmt 1 arr)
                   (step-statement stmt)))
               (with-statement db "select * from blobber"

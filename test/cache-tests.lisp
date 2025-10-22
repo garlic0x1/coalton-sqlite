@@ -26,7 +26,7 @@
                       (bind-i64 stmt 3 (the I64 3))
                       (step-statement stmt)))
                   ;; Saved in cache, clearing sql1
-                  (coalton-library/experimental:dotimes (_ 20) 
+                  (coalton-library/experimental:dotimes (_ 20)
                     (with-cached-statement cache sql3
                       (fn (stmt)
                         (bind-i64 stmt 1 (the I64 1))
